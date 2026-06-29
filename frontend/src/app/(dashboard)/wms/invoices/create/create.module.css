@@ -1,0 +1,90 @@
+.content {
+  padding: var(--space-6);
+  max-width: 900px;
+}
+
+.form {
+  margin-top: var(--space-4);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5) var(--space-6);
+}
+@media (max-width: 640px) { .formGrid { grid-template-columns: 1fr; } }
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(244, 63, 94, 0.06);
+  border: 1px solid rgba(244, 63, 94, 0.12);
+  border-radius: var(--radius-lg);
+  color: var(--color-danger-400);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+.successBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  border-radius: var(--radius-lg);
+  color: var(--color-accent-400);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+/* Lot Preview */
+.lotPreview {
+  padding: var(--space-5);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-xl);
+}
+
+.lotPreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+@media (max-width: 640px) { .lotPreviewGrid { grid-template-columns: repeat(2, 1fr); } }
+
+.previewItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.previewLabel {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  font-weight: var(--font-medium);
+}
+
+.previewValue {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+}

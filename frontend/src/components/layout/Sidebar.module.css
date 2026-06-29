@@ -1,0 +1,169 @@
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-sidebar);
+  border-right: 1px solid var(--color-border-primary);
+  z-index: 100;
+  transition: width var(--transition-slow);
+  overflow: hidden;
+}
+
+.sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+
+/* Logo */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4);
+  height: var(--header-height);
+  border-bottom: 1px solid var(--color-border-primary);
+  flex-shrink: 0;
+}
+
+.logoIcon {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+  border-radius: var(--radius-md);
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.logoText { display: flex; flex-direction: column; overflow: hidden; }
+
+.logoTitle {
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+}
+
+.logoRole {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-widest);
+  font-weight: var(--font-medium);
+}
+
+/* Navigation */
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-2);
+}
+
+.group { margin-bottom: var(--space-2); }
+
+.groupTitle {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-widest);
+  padding: var(--space-3) var(--space-3) var(--space-1-5);
+}
+
+.groupItems { display: flex; flex-direction: column; gap: 2px; }
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-normal);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+  text-decoration: none;
+  height: 34px;
+}
+
+.navItem:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.navItem.active {
+  background: var(--color-primary-600);
+  color: white;
+  font-weight: var(--font-medium);
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.navItem.active::before { display: none; }
+
+.navIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.navItem.active .navIcon {
+  opacity: 1;
+}
+
+.navLabel {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navBadge {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-semibold);
+  background: var(--color-primary-500);
+  color: white;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  line-height: 1.5;
+}
+
+/* Collapse button */
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2-5);
+  margin: var(--space-2);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.collapseBtn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+/* Collapsed state adjustments */
+.collapsed .navItem { justify-content: center; padding: var(--space-2); }
+.collapsed .navItem.active::before { display: none; }
+.collapsed .logo { justify-content: center; padding: var(--space-4) var(--space-2); }
+
+/* Active indicator is not needed anymore — we have the left bar */
+.activeIndicator { display: none; }

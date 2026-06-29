@@ -1,0 +1,303 @@
+.content {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--content-max-width);
+}
+
+/* ── Summary Bar ────────────────────────────── */
+.summaryBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 900px) {
+  .summaryBar { grid-template-columns: repeat(2, 1fr); }
+}
+
+.summaryItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-xl);
+}
+
+.summaryIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summaryIcon.green {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-accent-500);
+}
+
+.summaryIcon.yellow {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.summaryIcon.red {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--color-danger-400);
+}
+
+.summaryIcon.blue {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary-400);
+}
+
+.summaryInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summaryValue {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.summaryLabel {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+/* ── Chamber Grid ───────────────────────────── */
+.chamberGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
+}
+
+/* ── Chamber Card ───────────────────────────── */
+.chamberCard {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  transition: all var(--transition-base);
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+
+.chamberCard:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chamberCard.alertNormal {
+  border-left: 3px solid var(--color-accent-500);
+}
+
+.chamberCard.alertWarning {
+  border-left: 3px solid #f59e0b;
+}
+
+.chamberCard.alertCritical {
+  border-left: 3px solid var(--color-danger-400);
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+  50% { box-shadow: 0 0 16px 2px rgba(244, 63, 94, 0.15); }
+}
+
+/* Card header */
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.chamberInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chamberName {
+  font-size: var(--text-md);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+}
+
+.chamberMeta {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+}
+
+/* Alert dot */
+.alertDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.alertDot.normal { background: var(--color-accent-500); }
+.alertDot.warning { background: #f59e0b; }
+.alertDot.critical {
+  background: var(--color-danger-400);
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Readings row */
+.readingsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.reading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-lg);
+}
+
+.readingLabel {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.readingValue {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.readingRange {
+  font-size: var(--text-2xs);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* Sparkline */
+.sparkline {
+  width: 100%;
+  height: 48px;
+  margin-bottom: var(--space-3);
+}
+
+.sparklineSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.sparklineLine {
+  fill: none;
+  stroke: var(--color-primary-400);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparklineArea {
+  fill: url(#sparkGradient);
+  opacity: 0.15;
+}
+
+.rangeZone {
+  fill: var(--color-accent-500);
+  opacity: 0.06;
+}
+
+/* Last updated */
+.lastUpdated {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+}
+
+/* ── No Data State ──────────────────────────── */
+.noData {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.noData svg { opacity: 0.3; }
+.noData p { font-size: var(--text-sm); }
+
+/* ── Loading ────────────────────────────────── */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-6);
+  color: var(--color-text-muted);
+}
+
+.loadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border-secondary);
+  border-top-color: var(--color-primary-500);
+  border-radius: var(--radius-full);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Auto Refresh Indicator ─────────────────── */
+.refreshBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-2xs);
+  color: var(--color-accent-500);
+  background: rgba(16, 185, 129, 0.06);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+.refreshDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-500);
+  animation: blink 2s ease-in-out infinite;
+}

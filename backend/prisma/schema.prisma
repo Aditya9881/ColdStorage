@@ -1,0 +1,727 @@
+// ============================================
+// ColdStorage Platform — Prisma Schema
+// Phase 1: Core Web Ecosystem + Phase 2: Marketplace
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── ENUMS ─────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  OWNER
+  STAFF
+  FARMER
+  BUYER
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum FacilityStatus {
+  PENDING_REVIEW
+  ACTIVE
+  SUSPENDED
+  DECOMMISSIONED
+}
+
+enum StorageType {
+  BAG
+  BULK
+  HYBRID
+}
+
+enum ChamberStatus {
+  OPERATIONAL
+  MAINTENANCE
+  OFFLINE
+}
+
+enum CommodityCategory {
+  POTATO
+  ONION
+  VEGETABLES
+  FRUITS
+  DAIRY
+  FROZEN_SEAFOOD
+  FROZEN_MEAT
+  PROCESSED_FOOD
+  SEEDS
+  OTHER
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+}
+
+enum DocumentType {
+  FSSAI_REGISTRATION
+  STATE_HORTICULTURE_LICENSE
+  POLLUTION_CONSENT
+  FIRE_SAFETY_CERTIFICATE
+  WDRA_REGISTRATION
+  GST_CERTIFICATE
+  BUSINESS_REGISTRATION
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum PricingModel {
+  PER_DAY_PER_MT
+  PER_MONTH_PER_MT
+  PER_SEASON
+  FLAT_RATE
+}
+
+enum PricingStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  REJECTED
+  ARCHIVED
+}
+
+enum LotStatus {
+  INTAKE_PENDING
+  STORED
+  PARTIALLY_RELEASED
+  FULLY_RELEASED
+  EXPIRED
+  DISPOSED
+}
+
+enum QualityGrade {
+  A
+  B
+  C
+  REJECTED
+}
+
+enum TransactionType {
+  INTAKE
+  PARTIAL_RELEASE
+  FULL_RELEASE
+  QUALITY_UPDATE
+  WEIGHT_ADJUSTMENT
+  TRANSFER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  EXPIRED
+  WITHDRAWN
+}
+
+enum OrderStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+}
+
+// ── MODELS ────────────────────────────────────
+
+/// Core users table — all stakeholders (admins, owners, staff, farmers, buyers)
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  fullName      String     @map("full_name") @db.VarChar(255)
+  email         String?    @unique @db.VarChar(255)
+  phone         String     @unique @db.VarChar(15)
+  phoneVerified Boolean    @default(false) @map("phone_verified")
+  role          UserRole
+  status        UserStatus @default(PENDING_VERIFICATION)
+  registrationNumber String? @unique @map("registration_number") @db.VarChar(100)
+
+  // Facility association (NULL for admins, farmers, buyers)
+  facilityId String?   @map("facility_id") @db.Uuid
+  facility   Facility? @relation("FacilityStaff", fields: [facilityId], references: [id], onDelete: SetNull)
+
+  // Profile
+  avatarUrl     String? @map("avatar_url") @db.VarChar(512)
+  preferredLang String  @default("en") @map("preferred_lang") @db.VarChar(5)
+  addressLine1  String? @map("address_line1") @db.VarChar(255)
+  addressLine2  String? @map("address_line2") @db.VarChar(255)
+  city          String? @db.VarChar(100)
+  state         String? @db.VarChar(100)
+  pincode       String? @db.VarChar(6)
+
+  // Auth
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz()
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  createdBy String?  @map("created_by") @db.Uuid
+
+  // Relations
+  sessions          UserSession[]
+  ownedFacilities   Facility[]          @relation("FacilityOwner")
+  depositedLots     InventoryLot[]      @relation("Depositor")
+  createdLots       InventoryLot[]      @relation("LotCreator")
+  performedTxns     InventoryTransaction[] @relation("TxnPerformer")
+  authorizedTxns    InventoryTransaction[] @relation("TxnAuthorizer")
+  uploadedDocuments FacilityDocument[]  @relation("DocUploader")
+  reviewedDocuments FacilityDocument[]  @relation("DocReviewer")
+  verifiedFacilities Facility[]         @relation("FacilityVerifier")
+  createdPricing    FacilityPricing[]   @relation("PricingCreator")
+  createdInvoices   Invoice[]           @relation("InvoiceCreator")
+  depositorInvoices Invoice[]           @relation("InvoiceDepositor")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  recordedPayments  Payment[]           @relation("PaymentRecorder")
+  marketListings    MarketListing[]     @relation("ListingSeller")
+  buyerOrders       Order[]             @relation("OrderBuyer")
+  facilityReviews   FacilityReview[]
+
+  @@index([role])
+  @@index([facilityId])
+  @@index([status])
+  @@map("users")
+}
+
+/// JWT refresh token sessions
+model UserSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique @map("refresh_token") @db.VarChar(512)
+  deviceInfo   Json?    @map("device_info")
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz()
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+/// Cold storage facilities
+model Facility {
+  id                 String         @id @default(uuid()) @db.Uuid
+  name               String         @db.VarChar(255)
+  registrationNumber String?        @unique @map("registration_number") @db.VarChar(100)
+
+  // Location
+  addressLine1 String  @map("address_line1") @db.VarChar(255)
+  addressLine2 String? @map("address_line2") @db.VarChar(255)
+  city         String  @db.VarChar(100)
+  district     String  @db.VarChar(100)
+  state        String  @db.VarChar(100)
+  pincode      String  @db.VarChar(6)
+  latitude     Decimal? @db.Decimal(10, 8)
+  longitude    Decimal? @db.Decimal(11, 8)
+
+  // Capacity
+  totalCapacityMt Decimal     @map("total_capacity_mt") @db.Decimal(12, 2)
+  storageType     StorageType @default(BAG) @map("storage_type")
+
+  // Operational
+  status         FacilityStatus @default(PENDING_REVIEW)
+  operatingSince DateTime?      @map("operating_since") @db.Date
+
+  // Owner
+  ownerId String @map("owner_id") @db.Uuid
+  owner   User   @relation("FacilityOwner", fields: [ownerId], references: [id])
+
+  // Contact
+  contactPhone String? @map("contact_phone") @db.VarChar(15)
+  contactEmail String? @map("contact_email") @db.VarChar(255)
+
+  // Verification
+  verifiedAt    DateTime? @map("verified_at") @db.Timestamptz()
+  verifiedBy    String?   @map("verified_by") @db.Uuid
+  verifier      User?     @relation("FacilityVerifier", fields: [verifiedBy], references: [id])
+  verificationNotes String? @map("verification_notes") @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  staff     User[]             @relation("FacilityStaff")
+  chambers  Chamber[]
+  documents FacilityDocument[]
+  pricing   FacilityPricing[]
+  lots      InventoryLot[]
+  invoices  Invoice[]
+  reviews   FacilityReview[]
+
+  @@index([status])
+  @@index([state])
+  @@index([ownerId])
+  @@index([latitude, longitude])
+  @@map("facilities")
+}
+
+/// Individual storage chambers within a facility
+model Chamber {
+  id             String  @id @default(uuid()) @db.Uuid
+  facilityId     String  @map("facility_id") @db.Uuid
+  facility       Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  chamberNumber  String  @map("chamber_number") @db.VarChar(20)
+  name           String? @db.VarChar(100)
+
+  // Capacity
+  capacityMt Decimal @map("capacity_mt") @db.Decimal(10, 2)
+  occupiedMt Decimal @default(0) @map("occupied_mt") @db.Decimal(10, 2)
+
+  // Environment targets
+  targetTempMin    Decimal? @map("target_temp_min") @db.Decimal(5, 2)
+  targetTempMax    Decimal? @map("target_temp_max") @db.Decimal(5, 2)
+  targetHumidityMin Decimal? @map("target_humidity_min") @db.Decimal(5, 2)
+  targetHumidityMax Decimal? @map("target_humidity_max") @db.Decimal(5, 2)
+
+  // Operational
+  commodityCategory CommodityCategory? @map("commodity_category")
+  status            ChamberStatus      @default(OPERATIONAL)
+  storageType       StorageType        @default(BAG) @map("storage_type")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  lots                InventoryLot[]
+  temperatureReadings TemperatureReading[]
+
+  @@unique([facilityId, chamberNumber])
+  @@index([facilityId])
+  @@index([status])
+  @@map("chambers")
+}
+
+/// Facility compliance documents (licenses, certificates)
+model FacilityDocument {
+  id             String       @id @default(uuid()) @db.Uuid
+  facilityId     String       @map("facility_id") @db.Uuid
+  facility       Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  documentType   DocumentType @map("document_type")
+  documentNumber String?      @map("document_number") @db.VarChar(100)
+  fileUrl        String       @map("file_url") @db.VarChar(512)
+
+  // Validity
+  issuedDate DateTime? @map("issued_date") @db.Date
+  expiryDate DateTime? @map("expiry_date") @db.Date
+
+  // Review
+  status       DocumentStatus @default(PENDING_REVIEW)
+  reviewedById String?        @map("reviewed_by") @db.Uuid
+  reviewer     User?          @relation("DocReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?      @map("reviewed_at") @db.Timestamptz()
+  reviewNotes  String?        @map("review_notes") @db.Text
+
+  // Upload
+  uploadedAt   DateTime @default(now()) @map("uploaded_at") @db.Timestamptz()
+  uploadedById String   @map("uploaded_by") @db.Uuid
+  uploader     User     @relation("DocUploader", fields: [uploadedById], references: [id])
+
+  @@index([facilityId])
+  @@index([status])
+  @@index([expiryDate])
+  @@map("facility_documents")
+}
+
+/// Pricing configurations per commodity per facility
+model FacilityPricing {
+  id                String            @id @default(uuid()) @db.Uuid
+  facilityId        String            @map("facility_id") @db.Uuid
+  facility          Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  commodityCategory CommodityCategory @map("commodity_category")
+  pricingModel      PricingModel      @map("pricing_model")
+  rateAmount        Decimal           @map("rate_amount") @db.Decimal(10, 2)
+  rateCurrency      String            @default("INR") @map("rate_currency") @db.VarChar(3)
+
+  // Admin oversight
+  status          PricingStatus @default(ACTIVE)
+  adminApproved   Boolean       @default(false) @map("admin_approved")
+  maxAllowedRate  Decimal?      @map("max_allowed_rate") @db.Decimal(10, 2)
+
+  // Validity
+  effectiveFrom  DateTime @map("effective_from") @db.Date
+  effectiveUntil DateTime? @map("effective_until") @db.Date
+
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  createdById String   @map("created_by") @db.Uuid
+  createdBy   User     @relation("PricingCreator", fields: [createdById], references: [id])
+
+  @@index([facilityId])
+  @@index([commodityCategory])
+  @@index([status])
+  @@map("facility_pricing")
+}
+
+/// Individual deposited lots — the core inventory unit
+model InventoryLot {
+  id            String @id @default(uuid()) @db.Uuid
+  lotNumber     String @unique @map("lot_number") @db.VarChar(50)
+  receiptNumber String @unique @map("receipt_number") @db.VarChar(50)
+  qrCodeData    String? @map("qr_code_data") @db.VarChar(512)
+
+  // Associations
+  facilityId  String   @map("facility_id") @db.Uuid
+  facility    Facility @relation(fields: [facilityId], references: [id])
+  chamberId   String   @map("chamber_id") @db.Uuid
+  chamber     Chamber  @relation(fields: [chamberId], references: [id])
+  depositorId String   @map("depositor_id") @db.Uuid
+  depositor   User     @relation("Depositor", fields: [depositorId], references: [id])
+
+  // Commodity details
+  commodityCategory CommodityCategory @map("commodity_category")
+  commodityName     String            @map("commodity_name") @db.VarChar(100)
+
+  // Quantities
+  intakeWeightKg  Decimal  @map("intake_weight_kg") @db.Decimal(12, 2)
+  currentWeightKg Decimal  @map("current_weight_kg") @db.Decimal(12, 2)
+  bagCount        Int?     @map("bag_count")
+
+  // Quality
+  qualityGrade    QualityGrade? @map("quality_grade")
+  qualityNotes    String?       @map("quality_notes") @db.Text
+  moistureContent Decimal?      @map("moisture_content") @db.Decimal(5, 2)
+
+  // Dates
+  intakeDate        DateTime  @default(now()) @map("intake_date") @db.Timestamptz()
+  expectedRelease   DateTime? @map("expected_release") @db.Date
+  actualReleaseDate DateTime? @map("actual_release_date") @db.Timestamptz()
+
+  // Status
+  status LotStatus @default(INTAKE_PENDING)
+
+  // Pricing snapshot
+  appliedRate  Decimal?      @map("applied_rate") @db.Decimal(10, 2)
+  pricingModel PricingModel? @map("pricing_model")
+
+  // Financial
+  totalRentAccrued Decimal @default(0) @map("total_rent_accrued") @db.Decimal(12, 2)
+  totalRentPaid    Decimal @default(0) @map("total_rent_paid") @db.Decimal(12, 2)
+
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  createdById String   @map("created_by") @db.Uuid
+  createdBy   User     @relation("LotCreator", fields: [createdById], references: [id])
+
+  // Relations
+  transactions InventoryTransaction[]
+  invoices     Invoice[]
+  listings     MarketListing[]
+
+  @@index([facilityId])
+  @@index([chamberId])
+  @@index([depositorId])
+  @@index([status])
+  @@index([commodityCategory])
+  @@index([intakeDate])
+  @@map("inventory_lots")
+}
+
+/// Immutable transaction log for every inventory movement
+model InventoryTransaction {
+  id     String          @id @default(uuid()) @db.Uuid
+  lotId  String          @map("lot_id") @db.Uuid
+  lot    InventoryLot    @relation(fields: [lotId], references: [id])
+
+  transactionType TransactionType @map("transaction_type")
+
+  // Quantities
+  weightKg Decimal @map("weight_kg") @db.Decimal(12, 2)
+  bagCount Int?    @map("bag_count")
+
+  // Context
+  notes          String? @db.Text
+  gatePassNumber String? @map("gate_pass_number") @db.VarChar(50)
+
+  // Authorization
+  authorizedById    String?  @map("authorized_by") @db.Uuid
+  authorizer        User?    @relation("TxnAuthorizer", fields: [authorizedById], references: [id])
+  depositorApproved Boolean  @default(false) @map("depositor_approved")
+
+  // Metadata
+  performedAt   DateTime @default(now()) @map("performed_at") @db.Timestamptz()
+  performedById String   @map("performed_by") @db.Uuid
+  performer     User     @relation("TxnPerformer", fields: [performedById], references: [id])
+
+  @@index([lotId])
+  @@index([transactionType])
+  @@index([performedAt])
+  @@map("inventory_transactions")
+}
+
+/// Invoices for storage charges
+model Invoice {
+  id            String  @id @default(uuid()) @db.Uuid
+  invoiceNumber String  @unique @map("invoice_number") @db.VarChar(50)
+
+  // References
+  facilityId  String   @map("facility_id") @db.Uuid
+  facility    Facility @relation(fields: [facilityId], references: [id])
+  depositorId String   @map("depositor_id") @db.Uuid
+  depositor   User     @relation("InvoiceDepositor", fields: [depositorId], references: [id])
+  lotId       String?  @map("lot_id") @db.Uuid
+  lot         InventoryLot? @relation(fields: [lotId], references: [id])
+
+  // Amounts
+  subtotal    Decimal @db.Decimal(12, 2)
+  taxAmount   Decimal @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount Decimal @map("total_amount") @db.Decimal(12, 2)
+  paidAmount  Decimal @default(0) @map("paid_amount") @db.Decimal(12, 2)
+
+  // Dates
+  billingPeriodStart DateTime? @map("billing_period_start") @db.Date
+  billingPeriodEnd   DateTime? @map("billing_period_end") @db.Date
+  issueDate          DateTime  @default(now()) @map("issue_date") @db.Date
+  dueDate            DateTime  @map("due_date") @db.Date
+
+  // Status
+  status InvoiceStatus @default(DRAFT)
+
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  createdById String   @map("created_by") @db.Uuid
+  createdBy   User     @relation("InvoiceCreator", fields: [createdById], references: [id])
+
+  // Relations
+  lineItems InvoiceLineItem[]
+  payments  Payment[]
+
+  @@index([facilityId])
+  @@index([depositorId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+/// Individual line items within an invoice
+model InvoiceLineItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  invoiceId   String  @map("invoice_id") @db.Uuid
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  description String  @db.VarChar(255)
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
+  totalPrice  Decimal @map("total_price") @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+/// Immutable audit trail for all platform actions
+model AuditLog {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  user       User?     @relation(fields: [userId], references: [id])
+  userRole   UserRole? @map("user_role")
+
+  action     String    @db.VarChar(100)
+  entityType String    @map("entity_type") @db.VarChar(50)
+  entityId   String    @map("entity_id") @db.Uuid
+
+  oldValues  Json?     @map("old_values")
+  newValues  Json?     @map("new_values")
+  metadata   Json?
+
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ── NOTIFICATION TYPE ENUM ───────────────────
+
+enum NotificationType {
+  TEMPERATURE_ALERT
+  LOT_EXPIRY_WARNING
+  INVOICE_OVERDUE
+  CHAMBER_CAPACITY_WARNING
+  SYSTEM
+}
+
+// ── TEMPERATURE READINGS ─────────────────────
+
+/// Sensor readings for chamber temperature and humidity monitoring
+model TemperatureReading {
+  id          String   @id @default(uuid()) @db.Uuid
+  chamberId   String   @map("chamber_id") @db.Uuid
+  chamber     Chamber  @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+
+  temperature Decimal  @db.Decimal(5, 2)
+  humidity    Decimal? @db.Decimal(5, 2)
+  sensorId    String?  @map("sensor_id") @db.VarChar(50)
+  isAlert     Boolean  @default(false) @map("is_alert")
+
+  recordedAt  DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+
+  @@index([chamberId])
+  @@index([recordedAt])
+  @@index([chamberId, recordedAt])
+  @@map("temperature_readings")
+}
+
+/// User notifications and alerts
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String           @db.VarChar(255)
+  message   String           @db.Text
+  read      Boolean          @default(false)
+  actionUrl String?          @map("action_url") @db.VarChar(512)
+  metadata  Json?
+
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// Payment records against invoices
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  invoiceId       String        @map("invoice_id") @db.Uuid
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount          Decimal       @db.Decimal(12, 2)
+  paymentMethod   PaymentMethod @map("payment_method")
+  referenceNumber String?       @map("reference_number") @db.VarChar(100)
+  notes           String?       @db.Text
+
+  paidAt          DateTime      @default(now()) @map("paid_at") @db.Timestamptz()
+  recordedById    String        @map("recorded_by") @db.Uuid
+  recordedBy      User          @relation("PaymentRecorder", fields: [recordedById], references: [id])
+
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([invoiceId])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+// ── PHASE 2: MARKETPLACE MODELS ──────────────
+
+/// Farmer lists their stored lot for sale on the marketplace
+model MarketListing {
+  id               String        @id @default(uuid()) @db.Uuid
+  lotId            String        @map("lot_id") @db.Uuid
+  lot              InventoryLot  @relation(fields: [lotId], references: [id])
+  sellerId         String        @map("seller_id") @db.Uuid
+  seller           User          @relation("ListingSeller", fields: [sellerId], references: [id])
+
+  // Pricing
+  askingPricePerKg Decimal       @map("asking_price_per_kg") @db.Decimal(10, 2)
+  minQuantityKg    Decimal?      @map("min_quantity_kg") @db.Decimal(12, 2)
+  description      String?       @db.Text
+
+  // Status
+  status           ListingStatus @default(ACTIVE)
+  listedAt         DateTime      @default(now()) @map("listed_at") @db.Timestamptz()
+  expiresAt        DateTime?     @map("expires_at") @db.Timestamptz()
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  orders Order[]
+
+  @@index([sellerId])
+  @@index([lotId])
+  @@index([status])
+  @@index([askingPricePerKg])
+  @@map("market_listings")
+}
+
+/// Buyer places an order against a marketplace listing
+model Order {
+  id               String        @id @default(uuid()) @db.Uuid
+  listingId        String        @map("listing_id") @db.Uuid
+  listing          MarketListing @relation(fields: [listingId], references: [id])
+  buyerId          String        @map("buyer_id") @db.Uuid
+  buyer            User          @relation("OrderBuyer", fields: [buyerId], references: [id])
+
+  // Order details
+  quantityKg       Decimal       @map("quantity_kg") @db.Decimal(12, 2)
+  agreedPricePerKg Decimal       @map("agreed_price_per_kg") @db.Decimal(10, 2)
+  totalAmount      Decimal       @map("total_amount") @db.Decimal(12, 2)
+
+  // Status & OTP
+  status           OrderStatus   @default(PENDING_APPROVAL)
+  otpCode          String?       @map("otp_code") @db.VarChar(6)
+  otpExpiresAt     DateTime?     @map("otp_expires_at") @db.Timestamptz()
+  approvedAt       DateTime?     @map("approved_at") @db.Timestamptz()
+  rejectedReason   String?       @map("rejected_reason") @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([listingId])
+  @@index([buyerId])
+  @@index([status])
+  @@map("orders")
+}
+
+/// Farmer reviews/ratings for cold storage facilities
+model FacilityReview {
+  id         String   @id @default(uuid()) @db.Uuid
+  facilityId String   @map("facility_id") @db.Uuid
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id])
+
+  rating     Int      @db.SmallInt /// 1-5 stars
+  comment    String?  @db.Text
+
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@unique([facilityId, userId])
+  @@index([facilityId])
+  @@index([rating])
+  @@map("facility_reviews")
+}
