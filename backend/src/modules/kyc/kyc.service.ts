@@ -1,10 +1,9 @@
 /**
  * KYC Service — Document upload, verification, and admin review
  */
-import { PrismaClient, DocumentStatus, UserDocType, UserStatus } from '@prisma/client';
+import { prisma } from '../../config/database';
+import type { UserDocType } from '@prisma/client';
 import { getFileUrl } from '../../shared/middleware/upload';
-
-const prisma = new PrismaClient();
 
 // ── Types ──
 
