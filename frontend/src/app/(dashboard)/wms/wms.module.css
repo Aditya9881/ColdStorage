@@ -11,3 +11,9 @@
   display: flex;
   flex-direction: column;
 }
+
+@media (max-width: 1024px) {
+  .mainArea {
+    margin-left: 0;
+  }
+}

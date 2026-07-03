@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Receipt, CheckCircle, Clock, AlertTriangle, Coins, X, FilePlus } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -13,6 +13,7 @@ import { StatsCard } from '@/components/ui/StatsCard';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import type { Invoice } from '@/types/models';
 import styles from './invoices.module.css';
@@ -20,26 +21,17 @@ import styles from './invoices.module.css';
 export default function InvoicesPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { loadInvoices(); }, [statusFilter]);
+  const filterParams: Record<string, string> = {};
+  if (statusFilter) filterParams.status = statusFilter;
 
-  const loadInvoices = async () => {
-    try {
-      setLoading(true);
-      const params: Record<string, string> = {};
-      if (statusFilter) params.status = statusFilter;
-      const res = await api.get<any>('/invoices', params);
-      if (res.success) setInvoices(res.data || []);
-    } catch (err) { console.error('Failed to load invoices:', err); }
-    finally { setLoading(false); }
-  };
+  const { data: invoiceData, loading, refetch } = useApiQuery<Invoice[]>('/invoices', { params: filterParams });
+  const invoices = invoiceData || [];
 
   const openPay = (inv: Invoice) => {
     setSelectedInvoice(inv);
@@ -55,7 +47,7 @@ export default function InvoicesPage() {
       const newStatus = newPaid >= Number(selectedInvoice.totalAmount) ? 'PAID' : 'PARTIALLY_PAID';
       await api.patch(`/invoices/${selectedInvoice.id}/status`, { paidAmount: newPaid, status: newStatus });
       showToast(`Payment of ${formatCurrency(payAmount)} recorded for ${selectedInvoice.invoiceNumber}`, 'success');
-      setShowPayModal(false); loadInvoices();
+      setShowPayModal(false); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to record payment', 'error'); }
     finally { setSubmitting(false); }
   };
@@ -63,7 +55,7 @@ export default function InvoicesPage() {
   const cancelInvoice = async (inv: Invoice) => {
     try {
       await api.patch(`/invoices/${inv.id}/status`, { status: 'CANCELLED' });
-      showToast(`Invoice ${inv.invoiceNumber} cancelled`, 'warning'); loadInvoices();
+      showToast(`Invoice ${inv.invoiceNumber} cancelled`, 'warning'); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to cancel', 'error'); }
   };
 

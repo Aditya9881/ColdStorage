@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "../styles/globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { SidebarProvider } from "@/hooks/useSidebar";
 import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
@@ -27,9 +28,11 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <AuthProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
+            <SidebarProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </SidebarProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

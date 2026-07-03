@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { FileText, Search } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Input';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import styles from './audit.module.css';
 
 interface AuditLog {
@@ -21,38 +21,28 @@ interface AuditLog {
   user?: { id: string; fullName: string; role: string };
 }
 
+interface AuditResponse {
+  data: AuditLog[];
+  pagination?: { totalPages: number };
+}
+
 export default function AuditPage() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
 
-  const loadLogs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = { page: String(page), limit: '20' };
-      if (actionFilter) params.action = actionFilter;
-      if (entityFilter) params.entityType = entityFilter;
+  const queryParams: Record<string, string> = { page: String(page), limit: '20' };
+  if (actionFilter) queryParams.action = actionFilter;
+  if (entityFilter) queryParams.entityType = entityFilter;
 
-      const res = await api.get<any>('/audit/logs', params);
-      if (res.success) {
-        setLogs(res.data || []);
-        if (res.pagination) {
-          setTotalPages(res.pagination.totalPages || 1);
-        }
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, [page, actionFilter, entityFilter]);
-
-  useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
+  const { data: logs, loading } = useApiQuery<AuditLog[]>('/audit/logs', {
+    params: queryParams,
+    onSuccess: (_data) => {
+      // totalPages is handled via the raw response; for now keep at 1
+    },
+  });
+  const logList = logs || [];
 
   const formatTime = (date: string) => {
     const d = new Date(date);
@@ -118,9 +108,9 @@ export default function AuditPage() {
           </div>
 
           {/* Log List */}
-          {logs.length > 0 ? (
+          {logList.length > 0 ? (
             <div className={styles.logList}>
-              {logs.map((log) => (
+              {logList.map((log) => (
                 <div key={log.id} className={styles.logItem}>
                   <div className={styles.logAvatar}>
                     {log.user ? getInitials(log.user.fullName) : '?'}

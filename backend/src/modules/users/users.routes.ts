@@ -4,6 +4,7 @@ import { authenticate, authorize } from '../auth/auth.middleware';
 import { sendSuccess, errors } from '../../shared/utils/api-response';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
 import { parsePagination, buildPaginationMeta } from '../../shared/utils/pagination';
 import { createAuditLog } from '../../shared/utils/audit';
 import { generateFarmerRegNumber } from '../../shared/utils/reg-number-generator';
@@ -194,6 +195,7 @@ router.get('/', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(as
         lastLoginAt: true,
         createdAt: true,
         facility: { select: { id: true, name: true } },
+        ownedFacilities: { select: { id: true, name: true } },
       },
     }),
     prisma.user.count({ where }),
@@ -284,7 +286,7 @@ router.patch('/me/password', asyncHandler(async (req: AuthenticatedRequest, res)
     return;
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, Number(env.BCRYPT_ROUNDS) || 12);
+  const passwordHash = await bcrypt.hash(newPassword, Number(env.BCRYPT_SALT_ROUNDS) || 12);
   await prisma.user.update({
     where: { id: req.user!.userId },
     data: { passwordHash },
@@ -298,7 +300,7 @@ router.patch('/me/password', asyncHandler(async (req: AuthenticatedRequest, res)
  */
 router.get('/:id', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const user = await prisma.user.findUnique({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     select: {
       id: true,
       fullName: true,
@@ -336,14 +338,14 @@ router.get('/:id', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler
 router.patch('/:id', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { fullName, email, phone, role, facilityId, addressLine1, addressLine2, city, state, pincode, preferredLang } = req.body;
 
-  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.user.findUnique({ where: { id: paramString(req.params.id) } });
   if (!existing) {
     errors.notFound(res, 'User not found');
     return;
   }
 
   const updated = await prisma.user.update({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     data: {
       ...(fullName && { fullName }),
       ...(email !== undefined && { email }),
@@ -374,7 +376,7 @@ router.patch('/:id', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandl
     userRole: req.user!.role,
     action: 'user.update',
     entityType: 'user',
-    entityId: req.params.id,
+    entityId: paramString(req.params.id),
     oldValues: { fullName: existing.fullName, role: existing.role },
     newValues: { fullName: updated.fullName, role: updated.role },
   });
@@ -388,14 +390,14 @@ router.patch('/:id', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandl
 router.patch('/:id/status', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { status } = req.body;
 
-  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.user.findUnique({ where: { id: paramString(req.params.id) } });
   if (!existing) {
     errors.notFound(res, 'User not found');
     return;
   }
 
   const updated = await prisma.user.update({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     data: { status },
     select: { id: true, fullName: true, status: true, updatedAt: true },
   });
@@ -405,7 +407,7 @@ router.patch('/:id/status', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), asy
     userRole: req.user!.role,
     action: 'user.status_change',
     entityType: 'user',
-    entityId: req.params.id,
+    entityId: paramString(req.params.id),
     oldValues: { status: existing.status },
     newValues: { status: updated.status },
   });

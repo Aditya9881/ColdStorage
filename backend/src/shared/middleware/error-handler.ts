@@ -75,12 +75,17 @@ export function errorHandler(
 }
 
 /**
- * Catch async errors in route handlers
+ * Catch async errors in route handlers.
+ * Generic so it works with both plain `Request` and `AuthenticatedRequest`.
  */
-export function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+export function asyncHandler<
+  TReq extends Request = Request,
+  TRes extends Response = Response,
+>(
+  fn: (req: TReq, res: TRes, next: NextFunction) => Promise<void>
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    Promise.resolve(fn(req as TReq, res as TRes, next)).catch(next);
   };
 }
+

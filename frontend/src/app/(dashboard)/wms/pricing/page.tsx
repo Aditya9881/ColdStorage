@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ClipboardList, CheckCircle, Package, Plus, Pencil } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
@@ -12,7 +12,9 @@ import { StatsCard } from '@/components/ui/StatsCard';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, getCommodityLabel } from '@/lib/formatters';
+import type { Facility } from '@/types/models';
 import styles from './pricing.module.css';
 
 const emptyPricingForm = {
@@ -23,35 +25,22 @@ const emptyPricingForm = {
 
 export default function WmsPricingPage() {
   const { showToast } = useToast();
-  const [rules, setRules] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [facilityId, setFacilityId] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedRule, setSelectedRule] = useState<any>(null);
   const [form, setForm] = useState(emptyPricingForm);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { detectFacility(); }, []);
+  // Detect facility
+  const { data: facilities } = useApiQuery<Facility[]>('/facilities');
+  const facilityId = facilities?.[0]?.id || '';
 
-  const detectFacility = async () => {
-    try {
-      const res = await api.get<any>('/facilities');
-      if (res.success && res.data?.length > 0) { setFacilityId(res.data[0].id); loadPricing(res.data[0].id); }
-      else { setLoading(false); }
-    } catch { setLoading(false); }
-  };
-
-  const loadPricing = async (fId?: string) => {
-    try {
-      const id = fId || facilityId;
-      const params: Record<string, string> = {};
-      if (id) params.facilityId = id;
-      const res = await api.get<any>('/pricing', params);
-      if (res.success) setRules(res.data || []);
-    } catch (err) { console.error('Failed to load pricing:', err); }
-    finally { setLoading(false); }
-  };
+  // Load pricing rules for facility
+  const { data: rulesData, loading, refetch } = useApiQuery<any[]>(
+    facilityId ? '/pricing' : null,
+    { params: facilityId ? { facilityId } : undefined }
+  );
+  const rules = rulesData || [];
 
   const handleChange = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -69,7 +58,7 @@ export default function WmsPricingPage() {
         effectiveFrom: form.effectiveFrom, effectiveUntil: form.effectiveTo || undefined,
       });
       showToast('Pricing rule created', 'success');
-      setShowAddModal(false); setForm(emptyPricingForm); loadPricing();
+      setShowAddModal(false); setForm(emptyPricingForm); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to create pricing rule', 'error'); }
     finally { setSubmitting(false); }
   };
@@ -98,7 +87,7 @@ export default function WmsPricingPage() {
         insuranceRatePercent: form.insuranceRatePercent ? Number(form.insuranceRatePercent) : null,
       });
       showToast('Pricing rule updated', 'success');
-      setShowEditModal(false); loadPricing();
+      setShowEditModal(false); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to update', 'error'); }
     finally { setSubmitting(false); }
   };

@@ -4,6 +4,7 @@ import { authenticate, authorize } from '../auth/auth.middleware';
 import { sendSuccess, errors } from '../../shared/utils/api-response';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
 
 const router = Router();
 
@@ -129,7 +130,7 @@ router.get('/chambers/:chamberId/history', asyncHandler(async (req: Authenticate
 
   const readings = await prisma.temperatureReading.findMany({
     where: {
-      chamberId,
+      chamberId: paramString(chamberId),
       recordedAt: { gte: since },
     },
     orderBy: { recordedAt: 'asc' },
@@ -144,7 +145,7 @@ router.get('/chambers/:chamberId/history', asyncHandler(async (req: Authenticate
   });
 
   const chamber = await prisma.chamber.findUnique({
-    where: { id: chamberId },
+    where: { id: paramString(chamberId) },
     select: {
       id: true,
       chamberNumber: true,
@@ -199,7 +200,7 @@ router.post('/readings', asyncHandler(async (req: AuthenticatedRequest, res) => 
 
   // Check if temperature is out of range
   const chamber = await prisma.chamber.findUnique({
-    where: { id: chamberId },
+    where: { id: paramString(chamberId) },
     select: { targetTempMin: true, targetTempMax: true },
   });
 
@@ -212,7 +213,7 @@ router.post('/readings', asyncHandler(async (req: AuthenticatedRequest, res) => 
 
   const reading = await prisma.temperatureReading.create({
     data: {
-      chamberId,
+      chamberId: paramString(chamberId),
       temperature,
       humidity,
       sensorId: sensorId || null,

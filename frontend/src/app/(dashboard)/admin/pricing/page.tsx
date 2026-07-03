@@ -1,15 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { ClipboardList, CheckCircle, Package } from 'lucide-react';
+import React from 'react';
+import { ClipboardList, CheckCircle, Package, Building2, MapPin } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
-import { Card, CardHeader } from '@/components/ui/Card';
-import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { StatsCard } from '@/components/ui/StatsCard';
-import { api } from '@/lib/api-client';
-import { formatCurrency, getCommodityLabel, formatDate } from '@/lib/formatters';
+import { useApiQuery } from '@/hooks/useApiQuery';
+import { formatCurrency, getCommodityLabel } from '@/lib/formatters';
 import styles from './pricing.module.css';
 
 interface PricingRule {
@@ -24,80 +22,46 @@ interface PricingRule {
   effectiveFrom: string;
   effectiveTo?: string;
   status: string;
-  facility?: { name: string };
+  facility?: { id: string; name: string; city?: string; state?: string };
 }
 
 export default function AdminPricingPage() {
-  const [rules, setRules] = useState<PricingRule[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadPricing();
-  }, []);
-
-  const loadPricing = async () => {
-    try {
-      const res = await api.get<any>('/pricing');
-      if (res.success) setRules(res.data || []);
-    } catch (err) {
-      console.error('Failed to load pricing:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const columns: Column<PricingRule>[] = [
-    {
-      key: 'facility',
-      header: 'Facility',
-      render: (row) => (
-        <span style={{ fontWeight: 500 }}>{row.facility?.name || 'All Facilities'}</span>
-      ),
-    },
-    {
-      key: 'commodity',
-      header: 'Commodity',
-      render: (row) => <span>{getCommodityLabel(row.commodityCategory)}</span>,
-    },
-    {
-      key: 'ratePerMtPerDay',
-      header: 'Rate / MT / Day',
-      render: (row) => (
-        <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-          {formatCurrency(row.ratePerMtPerDay)}
-        </span>
-      ),
-    },
-    {
-      key: 'ratePerBagPerDay',
-      header: 'Rate / Bag / Day',
-      render: (row) => row.ratePerBagPerDay
-        ? <span style={{ fontFamily: 'var(--font-mono)' }}>{formatCurrency(row.ratePerBagPerDay)}</span>
-        : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
-    },
-    {
-      key: 'handling',
-      header: 'Handling / MT',
-      render: (row) => row.handlingChargePerMt
-        ? <span style={{ fontFamily: 'var(--font-mono)' }}>{formatCurrency(row.handlingChargePerMt)}</span>
-        : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
-    },
-    {
-      key: 'insurance',
-      header: 'Insurance %',
-      render: (row) => row.insuranceRatePercent
-        ? <Badge variant="info">{Number(row.insuranceRatePercent).toFixed(2)}%</Badge>
-        : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
-    },
-    {
-      key: 'effectiveFrom',
-      header: 'Effective From',
-      render: (row) => <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>{formatDate(row.effectiveFrom)}</span>,
-    },
-    { key: 'status', header: 'Status', render: (row) => renderStatus(row.status) },
-  ];
+  const { data: rulesData, loading } = useApiQuery<PricingRule[]>('/pricing');
+  const rules = rulesData || [];
 
   const activeRules = rules.filter(r => r.status === 'ACTIVE').length;
+
+  // Group rules by facility
+  const groupedRules = React.useMemo(() => {
+    const groups: Record<string, {
+      facilityId: string;
+      facilityName: string;
+      city: string;
+      state: string;
+      rules: PricingRule[];
+    }> = {};
+
+    rules.forEach((rule) => {
+      const facility = rule.facility || { id: 'all', name: 'All Facilities', city: '—', state: '—' };
+      const fId = facility.id || 'all';
+      const fName = facility.name || 'All Facilities';
+      const fCity = facility.city || '—';
+      const fState = facility.state || '—';
+
+      if (!groups[fId]) {
+        groups[fId] = {
+          facilityId: fId,
+          facilityName: fName,
+          city: fCity,
+          state: fState,
+          rules: [],
+        };
+      }
+      groups[fId].rules.push(rule);
+    });
+
+    return Object.values(groups);
+  }, [rules]);
 
   return (
     <>
@@ -112,23 +76,69 @@ export default function AdminPricingPage() {
           <StatsCard title="Commodities" value={new Set(rules.map(r => r.commodityCategory)).size} icon={<Package size={18} />} variant="info" />
         </div>
 
-        <Card padding="none">
-          <div style={{ padding: 'var(--space-4) var(--space-5)', borderBottom: '1px solid var(--color-border-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Pricing Rules</h3>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
-                Storage rates configured by facility owners
-              </p>
-            </div>
-            <Badge variant="primary">{rules.length} rules</Badge>
+        <div className={styles.sectionHeader}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text-primary)' }}>Grouped by Cold Storage Facility</h2>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
+            Overview of configured commodity storage rates and handling charges per warehouse
+          </p>
+        </div>
+
+        {loading ? (
+          <div className={styles.facilityGrid}>
+            {[1, 2].map((i) => (
+              <div key={i} className="skeleton" style={{ height: '240px', borderRadius: 'var(--radius-xl)' }} />
+            ))}
           </div>
-          <DataTable
-            columns={columns}
-            data={rules}
-            loading={loading}
-            emptyMessage="No pricing rules configured yet"
-          />
-        </Card>
+        ) : groupedRules.length === 0 ? (
+          <Card padding="lg">
+            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No pricing rules configured yet</p>
+          </Card>
+        ) : (
+          <div className={styles.facilityGrid}>
+            {groupedRules.map((group) => (
+              <div key={group.facilityId} className={styles.facilityCard}>
+                <div className={styles.facilityCardHeader}>
+                  <div>
+                    <h3 className={styles.facilityName}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <Building2 size={16} style={{ color: 'var(--color-primary-500)' }} />
+                        {group.facilityName}
+                      </span>
+                    </h3>
+                    <span className={styles.facilityLocation}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', verticalAlign: 'middle' }}>
+                        <MapPin size={12} />
+                        {group.city}, {group.state}
+                      </span>
+                    </span>
+                  </div>
+                  <Badge variant="accent">{group.rules.length} Rates</Badge>
+                </div>
+
+                <div className={styles.ratesContainer}>
+                  {group.rules.map((rule) => (
+                    <div key={rule.id} className={styles.rateRow}>
+                      <div className={styles.commodityInfo}>
+                        <Badge variant="primary">{getCommodityLabel(rule.commodityCategory)}</Badge>
+                        {rule.status !== 'ACTIVE' && (
+                          <Badge variant="muted" size="sm">{rule.status.toLowerCase()}</Badge>
+                        )}
+                      </div>
+                      <div className={styles.rateDetails}>
+                        <span className={styles.rateValue}>{formatCurrency(rule.ratePerMtPerDay)}</span>
+                        <span className={styles.rateUnit}>/MT/day</span>
+                        
+                        {rule.ratePerBagPerDay && (
+                          <span className={styles.rateSub}>({formatCurrency(rule.ratePerBagPerDay)}/bag/day)</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </>
   );

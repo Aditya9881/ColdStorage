@@ -7,8 +7,9 @@ import {
   LayoutDashboard, BarChart3, Factory, Users, Coins,
   ClipboardCheck, Boxes, Package, PackagePlus,
   Receipt, FilePlus, Sprout, Building, Snowflake,
-  PanelLeftClose, PanelLeftOpen, Settings, FileText,
+  PanelLeftClose, PanelLeftOpen, Settings, FileText, ShieldCheck,
 } from 'lucide-react';
+import { useSidebar } from '@/hooks/useSidebar';
 import styles from './Sidebar.module.css';
 
 interface NavItem {
@@ -37,6 +38,7 @@ const adminNav: NavGroup[] = [
       { label: 'Facilities', href: '/admin/facilities', icon: <Factory size={18} /> },
       { label: 'Users', href: '/admin/users', icon: <Users size={18} /> },
       { label: 'Pricing', href: '/admin/pricing', icon: <Coins size={18} /> },
+      { label: 'KYC Verification', href: '/admin/kyc', icon: <ShieldCheck size={18} /> },
       { label: 'Compliance', href: '/admin/compliance', icon: <ClipboardCheck size={18} /> },
       { label: 'Audit Trail', href: '/admin/audit', icon: <FileText size={18} /> },
     ],
@@ -84,6 +86,7 @@ interface SidebarProps {
 export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { isOpen, closeSidebar } = useSidebar();
   const navGroups = role === 'admin' ? adminNav : wmsNav;
 
   const isActive = (href: string) => {
@@ -104,7 +107,9 @@ export function Sidebar({ role }: SidebarProps) {
   };
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+    <>
+      {isOpen && <div className={styles.backdrop} onClick={closeSidebar} />}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${isOpen ? styles.open : ''}`}>
       {/* Logo */}
       <div className={styles.logo}>
         <div className={styles.logoIcon}>
@@ -158,5 +163,6 @@ export function Sidebar({ role }: SidebarProps) {
         {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
       </button>
     </aside>
+    </>
   );
 }

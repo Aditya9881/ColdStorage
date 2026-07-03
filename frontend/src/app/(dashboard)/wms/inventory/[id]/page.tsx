@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Package, PackageOpen, Scale, ClipboardCheck,
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input, Select } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { api, ApiError } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import {
   formatWeight, formatDate, formatRelativeTime, formatCurrency,
   getCommodityLabel, getStatusLabel, getStatusColor,
@@ -27,9 +28,10 @@ export default function LotDetailPage() {
   const router = useRouter();
   const lotId = params.id as string;
 
-  const [lot, setLot] = useState<InventoryLot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: lot, loading, error: fetchError, refetch } = useApiQuery<InventoryLot>(
+    lotId ? `/inventory/lots/${lotId}` : null
+  );
+  const error = fetchError?.message || '';
 
   // Release modal state
   const [showRelease, setShowRelease] = useState(false);
@@ -51,28 +53,6 @@ export default function LotDetailPage() {
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState('');
 
-  const loadLot = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await api.get<any>(`/inventory/lots/${lotId}`);
-      if (res.success && res.data) {
-        setLot(res.data);
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to load lot details');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [lotId]);
-
-  useEffect(() => {
-    if (lotId) loadLot();
-  }, [lotId, loadLot]);
-
   // ── Release Handler ──────────────────────────
   const handleRelease = async () => {
     if (!releaseForm.weightKg) return;
@@ -86,7 +66,7 @@ export default function LotDetailPage() {
       });
       if (res.success) {
         setReleaseResult({ gatePassNumber: res.data.gatePassNumber });
-        loadLot(); // Refresh lot data
+        refetch(); // Refresh lot data
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -126,7 +106,7 @@ export default function LotDetailPage() {
         moistureContent: qualityForm.moistureContent ? parseFloat(qualityForm.moistureContent) : undefined,
       });
       setEditingQuality(false);
-      loadLot();
+      refetch();
     } catch (err) {
       console.error('Quality update failed:', err);
     } finally {
@@ -618,7 +598,7 @@ export default function LotDetailPage() {
             setTransferring(true); setTransferError('');
             try {
               const res = await api.post<any>(`/inventory/lots/${lot.id}/transfer`, { targetChamberId: transferTarget, notes: transferNotes });
-              if (res.success) { setShowTransfer(false); loadLot(); }
+              if (res.success) { setShowTransfer(false); refetch(); }
             } catch (err) {
               setTransferError(err instanceof ApiError ? err.message : 'Transfer failed');
             } finally { setTransferring(false); }

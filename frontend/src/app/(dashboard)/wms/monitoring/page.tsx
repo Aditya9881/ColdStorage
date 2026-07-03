@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import {
   Thermometer, Droplets, AlertTriangle, CheckCircle,
   Activity, Clock, RefreshCw,
@@ -8,7 +8,7 @@ import {
 import { Header } from '@/components/layout/Header';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatRelativeTime, getCommodityLabel } from '@/lib/formatters';
 import styles from './monitoring.module.css';
 
@@ -105,30 +105,12 @@ function Sparkline({ data, targetMin, targetMax }: { data: SparklinePoint[]; tar
 }
 
 export default function MonitoringPage() {
-  const [data, setData] = useState<ChamberOverview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const { data: rawData, loading, refetch } = useApiQuery<ChamberOverview[]>('/temperature/overview', {
+    refetchInterval: 30_000,
+  });
 
-  const loadData = useCallback(async () => {
-    try {
-      const res = await api.get<any>('/temperature/overview');
-      if (res.success && res.data) {
-        setData(res.data);
-      }
-    } catch (err) {
-      console.error('Failed to load temperature data:', err);
-    } finally {
-      setLoading(false);
-      setLastRefresh(new Date());
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(loadData, 30_000);
-    return () => clearInterval(interval);
-  }, [loadData]);
+  const data = rawData || [];
+  const lastRefresh = new Date();
 
   const normalCount = data.filter((d) => d.alertStatus === 'normal').length;
   const warningCount = data.filter((d) => d.alertStatus === 'warning').length;
@@ -146,7 +128,7 @@ export default function MonitoringPage() {
               <span className={styles.refreshDot} />
               Live · {formatRelativeTime(lastRefresh.toISOString())}
             </span>
-            <Button variant="secondary" size="sm" icon={<RefreshCw size={14} />} onClick={loadData}>
+            <Button variant="secondary" size="sm" icon={<RefreshCw size={14} />} onClick={refetch}>
               Refresh
             </Button>
           </div>

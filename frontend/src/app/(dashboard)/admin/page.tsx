@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Package, Users, Coins, Clock, ClipboardList, TrendingUp, UserPlus } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -9,57 +9,20 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatWeight, formatDate, formatPercent } from '@/lib/formatters';
-import type { Facility } from '@/types/models';
+import type { Facility, DashboardOverview, CapacityAnalytics } from '@/types/models';
 import styles from './admin.module.css';
-
-interface OverviewData {
-  facilities: { total: number; active: number; pendingReview: number };
-  users: { total: number; farmers: number; owners: number };
-  inventory: { totalLots: number; activeLots: number; totalStoredKg: number; totalStoredMt: number };
-  financial: { totalInvoices: number; totalRevenue: number };
-}
-
-interface CapacityData {
-  national: { totalCapacityMt: number; occupiedMt: number; availableMt: number; utilizationRate: number; facilityCount: number };
-  byState: Array<{ state: string; totalCapacityMt: number; occupiedMt: number; availableMt: number; utilizationRate: number; facilityCount: number }>;
-}
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [capacity, setCapacity] = useState<CapacityData | null>(null);
-  const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const { data: overview, loading: overviewLoading } = useApiQuery<DashboardOverview>('/analytics/overview');
+  const { data: capacity } = useApiQuery<CapacityAnalytics>('/analytics/capacity');
+  const { data: facilitiesData, loading: facilitiesLoading } = useApiQuery<Facility[]>('/facilities');
 
-  const loadDashboard = async () => {
-    try {
-      const [overviewRes, capacityRes, facilitiesRes] = await Promise.allSettled([
-        api.get<any>('/analytics/overview'),
-        api.get<any>('/analytics/capacity'),
-        api.get<any>('/facilities'),
-      ]);
-
-      if (overviewRes.status === 'fulfilled' && overviewRes.value.success) {
-        setOverview(overviewRes.value.data);
-      }
-      if (capacityRes.status === 'fulfilled' && capacityRes.value.success) {
-        setCapacity(capacityRes.value.data);
-      }
-      if (facilitiesRes.status === 'fulfilled' && facilitiesRes.value.success) {
-        setFacilities(facilitiesRes.value.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to load dashboard:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = overviewLoading || facilitiesLoading;
+  const facilities = facilitiesData || [];
 
   const facilityColumns: Column<Facility>[] = [
     {

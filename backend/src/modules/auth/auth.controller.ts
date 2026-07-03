@@ -9,15 +9,20 @@ export const authController = {
    * POST /auth/register
    */
   register: asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { fullName, phone, email, password, role, facilityId } = req.body;
+    const {
+      fullName, phone, email, password, role, facilityId,
+      addressLine1, city, state, pincode, district,
+      aadhaarNumber, panNumber,
+      landHolding, khasraNumber, villageName,
+      gstNumber, businessName, businessType,
+    } = req.body;
 
     const result = await authService.register({
-      fullName,
-      phone,
-      email,
-      password,
-      role,
-      facilityId,
+      fullName, phone, email, password, role, facilityId,
+      addressLine1, city, state, pincode, district,
+      aadhaarNumber, panNumber,
+      landHolding, khasraNumber, villageName,
+      gstNumber, businessName, businessType,
     });
 
     sendSuccess(res, result, 201);
@@ -64,5 +69,15 @@ export const authController = {
     const userId = req.user!.userId;
     const profile = await authService.getProfile(userId);
     sendSuccess(res, profile);
+  }),
+
+  /**
+   * POST /auth/push-token
+   */
+  savePushToken: asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.user!.userId;
+    const { token } = req.body;
+    await authService.savePushToken(userId, token);
+    sendSuccess(res, { message: 'Push token saved' });
   }),
 };

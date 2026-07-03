@@ -2,13 +2,17 @@ import { Router } from 'express';
 import { prisma } from '../../config/database';
 import { authenticate, authorize } from '../auth/auth.middleware';
 import { asyncHandler } from '../../shared/middleware/error-handler';
+import { paramString } from '../../shared/utils/query-helpers';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
+import { validate } from '../../shared/middleware/validate';
+import { createListingSchema, uuidParamSchema } from '../../shared/schemas';
+import { idempotent } from '../../shared/middleware/idempotency';
 
 const router = Router();
 router.use(authenticate);
 
 // ── POST /marketplace/listings — Create listing ──
-router.post('/listings', authorize(UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/listings', authorize(UserRole.FARMER), validate({ body: createListingSchema }), idempotent, asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { lotId, askingPricePerKg, minQuantityKg, description, expiresAt } = req.body;
   const sellerId = req.user!.userId;
 
@@ -89,7 +93,7 @@ router.get('/my-listings', authorize(UserRole.FARMER), asyncHandler(async (req: 
 // ── GET /marketplace/listings/:id — Detail ──
 router.get('/listings/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const listing = await prisma.marketListing.findUnique({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     include: {
       lot: { select: { id: true, lotNumber: true, commodityName: true, commodityCategory: true, currentWeightKg: true, intakeWeightKg: true,
         qualityGrade: true, qualityNotes: true, moistureContent: true, bagCount: true, intakeDate: true, status: true,
@@ -106,11 +110,11 @@ router.get('/listings/:id', asyncHandler(async (req: AuthenticatedRequest, res) 
 // ── PATCH /marketplace/listings/:id — Update/withdraw ──
 router.patch('/listings/:id', authorize(UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { askingPricePerKg, minQuantityKg, description, status } = req.body;
-  const listing = await prisma.marketListing.findFirst({ where: { id: req.params.id, sellerId: req.user!.userId } });
+  const listing = await prisma.marketListing.findFirst({ where: { id: paramString(req.params.id), sellerId: req.user!.userId } });
   if (!listing) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Listing not found' } }); return; }
 
   const updated = await prisma.marketListing.update({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     data: {
       ...(askingPricePerKg !== undefined && { askingPricePerKg: parseFloat(askingPricePerKg) }),
       ...(minQuantityKg !== undefined && { minQuantityKg: parseFloat(minQuantityKg) }),

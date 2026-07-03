@@ -1,24 +1,24 @@
 import { Router } from 'express';
 import { prisma } from '../../config/database';
-import { authenticate } from '../auth/auth.middleware';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
 
 const router = Router();
 
-router.use(authenticate);
+// Discovery routes are PUBLIC — no auth required for guest-first flow
 
 // ── GET /discover/facilities — Search facilities ──
-router.get('/facilities', asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.get('/facilities', asyncHandler(async (req, res) => {
   const { commodity, state, city, page = '1', limit = '20' } = req.query;
 
   const where: any = { status: 'ACTIVE' };
   if (commodity) where.chambers = { some: { commodityCategory: commodity, status: 'OPERATIONAL' } };
-  if (state) where.state = { contains: state as string, mode: 'insensitive' };
-  if (city) where.city = { contains: city as string, mode: 'insensitive' };
+  if (state) where.state = { contains: state, mode: 'insensitive' };
+  if (city) where.city = { contains: city, mode: 'insensitive' };
 
-  const pageNum = Math.max(1, parseInt(page as string));
-  const pageSize = Math.min(50, parseInt(limit as string));
+  const pageNum = Math.max(1, parseInt(String(page ?? '1')));
+  const pageSize = Math.min(50, parseInt(String(limit ?? '20')));
 
   const facilities = await prisma.facility.findMany({
     where,
@@ -59,9 +59,10 @@ router.get('/facilities', asyncHandler(async (req: AuthenticatedRequest, res) =>
 }));
 
 // ── GET /discover/facilities/:id — Detail ──
-router.get('/facilities/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.get('/facilities/:id', asyncHandler(async (req, res) => {
+  const id = paramString(req.params.id);
   const facility: any = await prisma.facility.findUnique({
-    where: { id: req.params.id },
+    where: { id },
     include: {
       owner: { select: { id: true, fullName: true, phone: true } },
       chambers: { where: { status: 'OPERATIONAL' }, select: { id: true, chamberNumber: true, name: true, capacityMt: true, occupiedMt: true, commodityCategory: true, targetTempMin: true, targetTempMax: true } },
@@ -79,28 +80,31 @@ router.get('/facilities/:id', asyncHandler(async (req: AuthenticatedRequest, res
   res.json({ success: true, data: { ...facility, availableCapacity: Number(facility.totalCapacityMt) - totalOccupied, avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null } });
 }));
 
-// ── POST /discover/facilities/:id/reviews ──
+// ── POST /discover/facilities/:id/reviews — Authenticated ──
 router.post('/facilities/:id/reviews', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { rating, comment } = req.body;
-  const userId = req.user!.userId;
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Login required to leave a review' } }); return; }
   if (!rating || rating < 1 || rating > 5) { res.status(400).json({ success: false, error: { code: 'INVALID_RATING', message: 'Rating must be 1-5' } }); return; }
 
-  const facility = await prisma.facility.findUnique({ where: { id: req.params.id } });
+  const id = paramString(req.params.id);
+  const facility = await prisma.facility.findUnique({ where: { id } });
   if (!facility) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Facility not found' } }); return; }
 
   const review = await prisma.facilityReview.upsert({
-    where: { facilityId_userId: { facilityId: req.params.id, userId } },
+    where: { facilityId_userId: { facilityId: id, userId } },
     update: { rating, comment },
-    create: { facilityId: req.params.id, userId, rating, comment },
+    create: { facilityId: id, userId, rating, comment },
     include: { user: { select: { id: true, fullName: true } } },
   });
   res.status(201).json({ success: true, data: review });
 }));
 
 // ── GET /discover/facilities/:id/reviews ──
-router.get('/facilities/:id/reviews', asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.get('/facilities/:id/reviews', asyncHandler(async (req, res) => {
+  const id = paramString(req.params.id);
   const reviews = await prisma.facilityReview.findMany({
-    where: { facilityId: req.params.id },
+    where: { facilityId: id },
     include: { user: { select: { id: true, fullName: true } } },
     orderBy: { createdAt: 'desc' },
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sprout, CheckCircle, Search, UserPlus, Plus } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -13,6 +13,7 @@ import { StatsCard } from '@/components/ui/StatsCard';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatDate } from '@/lib/formatters';
 import styles from './depositors.module.css';
 
@@ -42,27 +43,13 @@ const emptyForm = {
 export default function DepositorsPage() {
   const { showToast } = useToast();
   const router = useRouter();
-  const [depositors, setDepositors] = useState<Depositor[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadDepositors();
-  }, []);
-
-  const loadDepositors = async () => {
-    try {
-      const res = await api.get<any>('/users/depositors');
-      if (res.success) setDepositors(res.data || []);
-    } catch (err) {
-      console.error('Failed to load depositors:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: depositorData, loading, refetch } = useApiQuery<Depositor[]>('/users/depositors');
+  const depositors = depositorData || [];
 
   const handleChange = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,7 +74,7 @@ export default function DepositorsPage() {
       showToast(`Farmer "${form.fullName}" registered successfully`, 'success');
       setShowAddModal(false);
       setForm(emptyForm);
-      loadDepositors();
+      refetch();
     } catch (err: any) {
       showToast(err.message || 'Failed to register farmer', 'error');
     } finally {

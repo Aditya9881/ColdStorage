@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Factory, Package, Users, Coins, BarChart3, TrendingUp } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Badge } from '@/components/ui/Badge';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatWeight, formatPercent, getCommodityLabel } from '@/lib/formatters';
 import styles from './analytics.module.css';
 
@@ -124,49 +124,14 @@ function IntakeChart({ data }: { data: IntakeTrendItem[] }) {
 }
 
 export default function AnalyticsPage() {
-  const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [capacity, setCapacity] = useState<CapacityData | null>(null);
-  const [commodities, setCommodities] = useState<CommodityItem[] | null>(null);
-  const [intakeTrend, setIntakeTrend] = useState<IntakeTrendItem[] | null>(null);
-  const [facilityComp, setFacilityComp] = useState<FacilityComparison[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: overview, loading: overviewLoading } = useApiQuery<OverviewData>('/analytics/overview');
+  const { data: capacity } = useApiQuery<CapacityData>('/analytics/capacity');
+  const { data: rawCommodities } = useApiQuery<CommodityItem[]>('/analytics/commodities');
+  const { data: intakeTrend } = useApiQuery<IntakeTrendItem[]>('/analytics/intake-trend');
+  const { data: facilityComp } = useApiQuery<FacilityComparison[]>('/analytics/facility-comparison');
 
-  useEffect(() => {
-    loadAnalytics();
-  }, []);
-
-  const loadAnalytics = async () => {
-    try {
-      const [overviewRes, capacityRes, commodityRes, intakeRes, facilityRes] = await Promise.allSettled([
-        api.get<any>('/analytics/overview'),
-        api.get<any>('/analytics/capacity'),
-        api.get<any>('/analytics/commodities'),
-        api.get<any>('/analytics/intake-trend'),
-        api.get<any>('/analytics/facility-comparison'),
-      ]);
-
-      if (overviewRes.status === 'fulfilled' && overviewRes.value.success) {
-        setOverview(overviewRes.value.data);
-      }
-      if (capacityRes.status === 'fulfilled' && capacityRes.value.success) {
-        setCapacity(capacityRes.value.data);
-      }
-      if (commodityRes.status === 'fulfilled' && commodityRes.value.success) {
-        const data = commodityRes.value.data;
-        setCommodities(Array.isArray(data) ? data : []);
-      }
-      if (intakeRes.status === 'fulfilled' && intakeRes.value.success) {
-        setIntakeTrend(intakeRes.value.data);
-      }
-      if (facilityRes.status === 'fulfilled' && facilityRes.value.success) {
-        setFacilityComp(facilityRes.value.data);
-      }
-    } catch (err) {
-      console.error('Failed to load analytics:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = overviewLoading;
+  const commodities = Array.isArray(rawCommodities) ? rawCommodities : [];
 
   const commodityColors: Record<string, string> = {
     POTATO: 'var(--color-warning-500)', ONION: 'var(--color-danger-500)', VEGETABLES: 'var(--color-accent-500)', FRUITS: 'var(--color-primary-500)',

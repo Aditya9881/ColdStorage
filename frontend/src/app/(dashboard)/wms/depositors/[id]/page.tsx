@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Package, Receipt, Phone, Mail, MapPin, Calendar } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -9,42 +9,20 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
 import { StatsCard } from '@/components/ui/StatsCard';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatWeight, formatDate } from '@/lib/formatters';
 
 export default function DepositorDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [depositor, setDepositor] = useState<any>(null);
-  const [lots, setLots] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [userRes, lotsRes, invoicesRes] = await Promise.allSettled([
-        api.get<any>(`/users/${id}`),
-        api.get<any>('/inventory/lots'),
-        api.get<any>('/invoices'),
-      ]);
+  const { data: depositor, loading: depositorLoading } = useApiQuery<any>(id ? `/users/${id}` : null);
+  const { data: allLots } = useApiQuery<any[]>('/inventory/lots');
+  const { data: allInvoices } = useApiQuery<any[]>('/invoices');
 
-      if (userRes.status === 'fulfilled' && userRes.value.success) {
-        setDepositor(userRes.value.data);
-      }
-      if (lotsRes.status === 'fulfilled' && lotsRes.value.success) {
-        setLots((lotsRes.value.data || []).filter((l: any) => l.depositorId === id));
-      }
-      if (invoicesRes.status === 'fulfilled' && invoicesRes.value.success) {
-        setInvoices((invoicesRes.value.data || []).filter((i: any) => i.depositorId === id));
-      }
-    } catch {
-      // handle error
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { loadData(); }, [loadData]);
+  const loading = depositorLoading;
+  const lots = (allLots || []).filter((l: any) => l.depositorId === id);
+  const invoices = (allInvoices || []).filter((i: any) => i.depositorId === id);
 
   if (loading) return <><Header title="Depositor Details" /><main style={{ padding: 'var(--space-6)' }}><p>Loading...</p></main></>;
   if (!depositor) return <><Header title="Depositor Details" /><main style={{ padding: 'var(--space-6)' }}><p>Depositor not found</p></main></>;

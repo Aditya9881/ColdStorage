@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -9,43 +9,29 @@ import { Input, Select } from '@/components/ui/Input';
 import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Plus, Search } from 'lucide-react';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatWeight, formatDate, formatCurrency, getCommodityLabel } from '@/lib/formatters';
 import type { InventoryLot } from '@/types/models';
 import styles from './inventory.module.css';
 
 export default function InventoryPage() {
   const router = useRouter();
-  const [lots, setLots] = useState<InventoryLot[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    loadLots();
-  }, [statusFilter]);
+  const params: Record<string, string> = {};
+  if (statusFilter) params.status = statusFilter;
 
-  const loadLots = async () => {
-    try {
-      setLoading(true);
-      const params: Record<string, string> = {};
-      if (statusFilter) params.status = statusFilter;
-      const res = await api.get<any>('/inventory/lots', params);
-      if (res.success) setLots(res.data || []);
-    } catch (err) {
-      console.error('Failed to load lots:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: lots, loading } = useApiQuery<InventoryLot[]>('/inventory/lots', { params });
+  const lotList = lots || [];
 
   const filteredLots = search
-    ? lots.filter((l) =>
+    ? lotList.filter((l) =>
         l.lotNumber.toLowerCase().includes(search.toLowerCase()) ||
         l.commodityName.toLowerCase().includes(search.toLowerCase()) ||
         l.depositor?.fullName?.toLowerCase().includes(search.toLowerCase())
       )
-    : lots;
+    : lotList;
 
   const columns: Column<InventoryLot>[] = [
     {

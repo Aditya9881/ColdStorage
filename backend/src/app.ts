@@ -29,6 +29,10 @@ import marketplaceRoutes from './modules/marketplace/marketplace.routes';
 import orderRoutes from './modules/orders/orders.routes';
 import marketPriceRoutes from './modules/market-prices/market-prices.routes';
 
+// Phase 3: KYC & Documents
+import kycRoutes from './modules/kyc/kyc.routes';
+import path from 'path';
+
 const app = express();
 
 // ── Security ──────────────────────────────────────
@@ -45,6 +49,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(compression());
+
+// ── Static file serving (uploaded documents) ──
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 // ── Logging & Rate Limiting ───────────────────────
 app.use(requestLogger);
@@ -80,6 +87,9 @@ app.use(`${api}/discover`, discoveryRoutes);
 app.use(`${api}/marketplace`, marketplaceRoutes);
 app.use(`${api}/orders`, orderRoutes);
 app.use(`${api}/market-prices`, marketPriceRoutes);
+
+// Phase 3: KYC & Documents
+app.use(`${api}/kyc`, kycRoutes);
 
 // ── 404 Handler ───────────────────────────────────
 app.use((_req, res) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CreditCard, FileDown, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -9,32 +9,21 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input, Select } from '@/components/ui/Input';
 import { api, ApiError } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import styles from './invoice-detail.module.css';
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [invoice, setInvoice] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: invoice, loading, refetch } = useApiQuery<any>(
+    id ? `/invoices/${id}` : null
+  );
   const [showPayForm, setShowPayForm] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
   const [paySuccess, setPaySuccess] = useState('');
   const [payForm, setPayForm] = useState({ amount: '', paymentMethod: 'UPI', referenceNumber: '', notes: '' });
-
-  const loadInvoice = useCallback(async () => {
-    try {
-      const res = await api.get<any>(`/invoices/${id}`);
-      if (res.success) setInvoice(res.data);
-    } catch {
-      // handle error
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { loadInvoice(); }, [loadInvoice]);
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +39,7 @@ export default function InvoiceDetailPage() {
         setPaySuccess('Payment recorded successfully');
         setPayForm({ amount: '', paymentMethod: 'UPI', referenceNumber: '', notes: '' });
         setShowPayForm(false);
-        loadInvoice();
+        refetch();
       }
     } catch (err) {
       setPayError(err instanceof ApiError ? err.message : 'Failed to record payment');

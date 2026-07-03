@@ -4,6 +4,7 @@ import { authenticate, authorize } from '../auth/auth.middleware';
 import { sendSuccess, errors } from '../../shared/utils/api-response';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
 
 const router = Router();
 
@@ -19,7 +20,6 @@ router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
     commodityCategory, storageType,
   } = req.body;
 
-  // Verify facility exists and user has access
   const facility = await prisma.facility.findUnique({ where: { id: facilityId } });
   if (!facility) {
     errors.notFound(res, 'Facility not found');
@@ -54,7 +54,6 @@ router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
 router.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
   let facilityId = req.query.facilityId as string | undefined;
 
-  // Auto-detect facility for owners/staff
   if (!facilityId) {
     if (req.user!.role === UserRole.OWNER) {
       const facility = await prisma.facility.findFirst({
@@ -85,8 +84,9 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
  * GET /chambers/:id — Chamber details
  */
 router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const id = paramString(req.params.id);
   const chamber = await prisma.chamber.findUnique({
-    where: { id: req.params.id },
+    where: { id },
     include: {
       facility: { select: { id: true, name: true } },
       lots: {
@@ -118,19 +118,20 @@ router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
  * PATCH /chambers/:id — Update chamber configuration
  */
 router.patch('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const id = paramString(req.params.id);
   const {
     name, capacityMt, targetTempMin, targetTempMax,
     targetHumidityMin, targetHumidityMax, commodityCategory, status, storageType,
   } = req.body;
 
-  const existing = await prisma.chamber.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.chamber.findUnique({ where: { id } });
   if (!existing) {
     errors.notFound(res, 'Chamber not found');
     return;
   }
 
   const updated = await prisma.chamber.update({
-    where: { id: req.params.id },
+    where: { id },
     data: {
       ...(name !== undefined && { name }),
       ...(capacityMt && { capacityMt }),
@@ -151,8 +152,9 @@ router.patch('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.AD
  * DELETE /chambers/:id — Decommission chamber
  */
 router.delete('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const id = paramString(req.params.id);
   const chamber = await prisma.chamber.findUnique({
-    where: { id: req.params.id },
+    where: { id },
     include: { _count: { select: { lots: true } } },
   });
 
@@ -161,10 +163,9 @@ router.delete('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN), asyncHand
     return;
   }
 
-  // Check for active lots
   const activeLots = await prisma.inventoryLot.count({
     where: {
-      chamberId: req.params.id,
+      chamberId: id,
       status: { in: ['STORED', 'INTAKE_PENDING', 'PARTIALLY_RELEASED'] },
     },
   });
@@ -175,7 +176,7 @@ router.delete('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN), asyncHand
   }
 
   await prisma.chamber.update({
-    where: { id: req.params.id },
+    where: { id },
     data: { status: 'OFFLINE' },
   });
 

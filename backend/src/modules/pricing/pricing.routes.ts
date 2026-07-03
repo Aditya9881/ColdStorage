@@ -16,6 +16,7 @@ router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
   const {
     facilityId, commodityCategory, pricingModel,
     rateAmount, effectiveFrom, effectiveUntil,
+    ratePerMtPerDay,
   } = req.body;
 
   // Verify facility
@@ -40,12 +41,15 @@ router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
     data: { status: 'ARCHIVED' },
   });
 
+  const actualRateAmount = rateAmount !== undefined ? rateAmount : ratePerMtPerDay;
+  const actualPricingModel = pricingModel || 'PER_DAY_PER_MT';
+
   const pricing = await prisma.facilityPricing.create({
     data: {
       facilityId,
       commodityCategory,
-      pricingModel,
-      rateAmount,
+      pricingModel: actualPricingModel,
+      rateAmount: actualRateAmount,
       effectiveFrom: new Date(effectiveFrom),
       effectiveUntil: effectiveUntil ? new Date(effectiveUntil) : null,
       status: 'ACTIVE',
@@ -53,7 +57,10 @@ router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
     },
   });
 
-  sendSuccess(res, pricing, 201);
+  sendSuccess(res, {
+    ...pricing,
+    ratePerMtPerDay: Number(pricing.rateAmount),
+  }, 201);
 }));
 
 /**
@@ -63,9 +70,9 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { facilityId, commodityCategory, status } = req.query;
 
   const where: any = {};
-  if (facilityId) where.facilityId = facilityId;
-  if (commodityCategory) where.commodityCategory = commodityCategory;
-  if (status) where.status = status;
+  if (facilityId) where.facilityId = facilityId as string;
+  if (commodityCategory) where.commodityCategory = commodityCategory as any;
+  if (status) where.status = status as any;
 
   const pricing = await prisma.facilityPricing.findMany({
     where,
@@ -76,32 +83,42 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
     },
   });
 
-  sendSuccess(res, pricing);
+  const mappedPricing = pricing.map((p) => ({
+    ...p,
+    ratePerMtPerDay: Number(p.rateAmount),
+  }));
+
+  sendSuccess(res, mappedPricing);
 }));
 
 /**
  * PATCH /pricing/:id — Update pricing
  */
 router.patch('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
-  const { rateAmount, effectiveFrom, effectiveUntil, pricingModel } = req.body;
+  const { rateAmount, effectiveFrom, effectiveUntil, pricingModel, ratePerMtPerDay } = req.body;
 
-  const existing = await prisma.facilityPricing.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.facilityPricing.findUnique({ where: { id: req.params.id as string } });
   if (!existing) {
     errors.notFound(res, 'Pricing entry not found');
     return;
   }
 
+  const actualRateAmount = rateAmount !== undefined ? rateAmount : ratePerMtPerDay;
+
   const updated = await prisma.facilityPricing.update({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     data: {
-      ...(rateAmount !== undefined && { rateAmount }),
+      ...(actualRateAmount !== undefined && { rateAmount: actualRateAmount }),
       ...(effectiveFrom && { effectiveFrom: new Date(effectiveFrom) }),
       ...(effectiveUntil !== undefined && { effectiveUntil: effectiveUntil ? new Date(effectiveUntil) : null }),
       ...(pricingModel && { pricingModel }),
     },
   });
 
-  sendSuccess(res, updated);
+  sendSuccess(res, {
+    ...updated,
+    ratePerMtPerDay: Number(updated.rateAmount),
+  });
 }));
 
 /**
@@ -111,7 +128,7 @@ router.patch('/:id/approve', authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), as
   const { status, maxAllowedRate } = req.body;
 
   const updated = await prisma.facilityPricing.update({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     data: {
       status,
       adminApproved: status === 'ACTIVE',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, CheckCircle, Clock, Package, Pencil, Search, Plus, ShieldCheck } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -13,6 +13,7 @@ import { StatsCard } from '@/components/ui/StatsCard';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatDate } from '@/lib/formatters';
 import type { Facility } from '@/types/models';
 import styles from './facilities.module.css';
@@ -34,8 +35,6 @@ const emptyForm = {
 export default function FacilitiesPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -48,19 +47,12 @@ export default function FacilitiesPage() {
   const [verifyAction, setVerifyAction] = useState<'ACTIVE' | 'SUSPENDED'>('ACTIVE');
   const [verifyNotes, setVerifyNotes] = useState('');
 
-  useEffect(() => { loadFacilities(); }, [search, statusFilter]);
+  const filterParams: Record<string, string> = {};
+  if (search) filterParams.search = search;
+  if (statusFilter) filterParams.status = statusFilter;
 
-  const loadFacilities = async () => {
-    try {
-      setLoading(true);
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      const res = await api.get<any>('/facilities', params);
-      if (res.success) setFacilities(res.data || []);
-    } catch (err) { console.error('Failed to load facilities:', err); }
-    finally { setLoading(false); }
-  };
+  const { data: facilitiesData, loading, refetch } = useApiQuery<Facility[]>('/facilities', { params: filterParams });
+  const facilities = facilitiesData || [];
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -74,7 +66,7 @@ export default function FacilitiesPage() {
     try {
       await api.post('/facilities', { ...form, totalCapacityMt: Number(form.totalCapacityMt) });
       showToast(`Facility "${form.name}" created successfully`, 'success');
-      setShowAddModal(false); setForm(emptyForm); loadFacilities();
+      setShowAddModal(false); setForm(emptyForm); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to create facility', 'error'); }
     finally { setSubmitting(false); }
   };
@@ -102,7 +94,7 @@ export default function FacilitiesPage() {
         contactPhone: form.contactPhone, contactEmail: form.contactEmail,
       });
       showToast(`Facility "${form.name}" updated`, 'success');
-      setShowEditModal(false); setSelectedFacility(null); loadFacilities();
+      setShowEditModal(false); setSelectedFacility(null); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to update facility', 'error'); }
     finally { setSubmitting(false); }
   };
@@ -117,7 +109,7 @@ export default function FacilitiesPage() {
     try {
       await api.patch(`/facilities/${selectedFacility.id}/verify`, { status: verifyAction, verificationNotes: verifyNotes });
       showToast(`Facility "${selectedFacility.name}" ${verifyAction === 'ACTIVE' ? 'approved' : 'suspended'}`, verifyAction === 'ACTIVE' ? 'success' : 'warning');
-      setShowVerifyModal(false); setSelectedFacility(null); loadFacilities();
+      setShowVerifyModal(false); setSelectedFacility(null); refetch();
     } catch (err: any) { showToast(err.message || 'Failed to verify facility', 'error'); }
     finally { setSubmitting(false); }
   };

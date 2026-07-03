@@ -108,3 +108,7 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.label {
+  display: inline-block;
+}

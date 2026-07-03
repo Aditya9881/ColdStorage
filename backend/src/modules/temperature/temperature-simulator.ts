@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
+import { pushNotificationService } from '../notifications/push.service';
 
 /**
  * Temperature Simulator — Dev Mode Only
@@ -20,6 +21,7 @@ async function generateReadings() {
       select: {
         id: true,
         chamberNumber: true,
+        facilityId: true,
         targetTempMin: true,
         targetTempMax: true,
         targetHumidityMin: true,
@@ -58,15 +60,36 @@ async function generateReadings() {
 
       return {
         chamberId: chamber.id,
+        facilityId: chamber.facilityId,
+        chamberNumber: chamber.chamberNumber,
         temperature,
         humidity,
         sensorId: `SIM-${chamber.chamberNumber}`,
         isAlert,
+        tempMin,
+        tempMax,
       };
     });
 
-    await prisma.temperatureReading.createMany({ data: readings });
-    logger.debug(`[TempSim] Generated ${readings.length} readings (${readings.filter(r => r.isAlert).length} alerts)`);
+    // Save readings (without extra fields)
+    await prisma.temperatureReading.createMany({
+      data: readings.map(({ chamberId, temperature, humidity, sensorId, isAlert }) => ({
+        chamberId, temperature, humidity, sensorId, isAlert,
+      })),
+    });
+
+    // Send push notifications for alerts
+    const alertReadings = readings.filter(r => r.isAlert);
+    for (const alert of alertReadings) {
+      pushNotificationService.sendTemperatureAlert(
+        alert.facilityId,
+        alert.chamberNumber,
+        alert.temperature,
+        { min: alert.tempMin, max: alert.tempMax },
+      );
+    }
+
+    logger.debug(`[TempSim] Generated ${readings.length} readings (${alertReadings.length} alerts)`);
   } catch (err) {
     logger.error('[TempSim] Error generating readings', { error: String(err) });
   }

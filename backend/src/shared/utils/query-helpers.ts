@@ -17,3 +17,13 @@ export function queryNumber(value: unknown): number | undefined {
   const num = Number(str);
   return isNaN(num) ? undefined : num;
 }
+
+/**
+ * Safely extract a single string from Express route params.
+ * In @types/express v5, req.params[key] is typed as string | string[].
+ * This helper normalises it to a plain string.
+ */
+export function paramString(value: string | string[]): string {
+  return Array.isArray(value) ? value[0] : value;
+}
+

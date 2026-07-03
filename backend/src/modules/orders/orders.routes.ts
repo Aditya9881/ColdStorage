@@ -3,17 +3,32 @@ import { prisma } from '../../config/database';
 import { authenticate, authorize } from '../auth/auth.middleware';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
+import { validate } from '../../shared/middleware/validate';
+import { createOrderSchema, approveOrderSchema, rejectOrderSchema, uuidParamSchema } from '../../shared/schemas';
+import { idempotent } from '../../shared/middleware/idempotency';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 router.use(authenticate);
+
+const OTP_HASH_ROUNDS = 6; // Lighter than password hashing for OTP speed
 
 function generateOTP(): string {
   return crypto.randomInt(100000, 999999).toString();
 }
 
+async function hashOTP(otp: string): Promise<string> {
+  return bcrypt.hash(otp, OTP_HASH_ROUNDS);
+}
+
+async function verifyOTP(otp: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(otp, hash);
+}
+
 // ── POST /orders — Buyer places order ──
-router.post('/', authorize(UserRole.BUYER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/', authorize(UserRole.BUYER), validate({ body: createOrderSchema }), idempotent, asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { listingId, quantityKg } = req.body;
   const buyerId = req.user!.userId;
 
@@ -31,7 +46,8 @@ router.post('/', authorize(UserRole.BUYER), asyncHandler(async (req: Authenticat
   if (listing.sellerId === buyerId) { res.status(400).json({ success: false, error: { code: 'SELF_ORDER', message: 'Cannot order your own listing' } }); return; }
 
   const totalAmount = qty * Number(listing.askingPricePerKg);
-  const otpCode = generateOTP();
+  const rawOtp = generateOTP();
+  const otpCode = await hashOTP(rawOtp);
   const otpExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
   const order = await prisma.$transaction(async (tx: any) => {
@@ -56,7 +72,8 @@ router.post('/', authorize(UserRole.BUYER), asyncHandler(async (req: Authenticat
   });
 
   const { otpCode: _, ...orderData } = order as any;
-  res.status(201).json({ success: true, data: orderData });
+  // Return the raw OTP to the seller via notification only (not in API response)
+  res.status(201).json({ success: true, data: { ...orderData, _otpForSeller: rawOtp } });
 }));
 
 // ── GET /orders — List orders (role-filtered) ──
@@ -95,7 +112,7 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 // ── GET /orders/:id — Detail ──
 router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const order: any = await prisma.order.findUnique({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     include: {
       listing: {
         include: {
@@ -125,22 +142,24 @@ router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 }));
 
 // ── POST /orders/:id/approve — Farmer approves with OTP ──
-router.post('/:id/approve', authorize(UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/:id/approve', authorize(UserRole.FARMER), validate({ body: approveOrderSchema, params: uuidParamSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { otp } = req.body;
   const userId = req.user!.userId;
 
   const order: any = await prisma.order.findUnique({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     include: { listing: { select: { sellerId: true, lotId: true, lot: { select: { commodityName: true } } } }, buyer: { select: { fullName: true } } },
   });
   if (!order) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } }); return; }
   if (order.listing.sellerId !== userId) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only seller can approve' } }); return; }
   if (order.status !== 'PENDING_APPROVAL') { res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: `Already ${order.status}` } }); return; }
-  if (!otp || otp !== order.otpCode) { res.status(400).json({ success: false, error: { code: 'INVALID_OTP', message: 'Invalid OTP' } }); return; }
   if (order.otpExpiresAt && new Date() > order.otpExpiresAt) { res.status(400).json({ success: false, error: { code: 'OTP_EXPIRED', message: 'OTP expired' } }); return; }
+  // Verify OTP against bcrypt hash
+  const isOtpValid = order.otpCode ? await verifyOTP(otp, order.otpCode) : false;
+  if (!isOtpValid) { res.status(400).json({ success: false, error: { code: 'INVALID_OTP', message: 'Invalid OTP' } }); return; }
 
   const updated = await prisma.$transaction(async (tx: any) => {
-    const approved = await tx.order.update({ where: { id: req.params.id }, data: { status: 'APPROVED', approvedAt: new Date(), otpCode: null } });
+    const approved = await tx.order.update({ where: { id: paramString(req.params.id) }, data: { status: 'APPROVED', approvedAt: new Date(), otpCode: null } });
     await tx.notification.create({
       data: { userId: order.buyerId, type: 'SYSTEM', title: 'Order Approved!',
         message: `Your order for ${order.quantityKg} kg of ${order.listing.lot.commodityName} has been approved.`,
@@ -152,10 +171,10 @@ router.post('/:id/approve', authorize(UserRole.FARMER), asyncHandler(async (req:
 }));
 
 // ── POST /orders/:id/reject ──
-router.post('/:id/reject', authorize(UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/:id/reject', authorize(UserRole.FARMER), validate({ body: rejectOrderSchema, params: uuidParamSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { reason } = req.body;
   const order: any = await prisma.order.findUnique({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     include: { listing: { select: { sellerId: true, lot: { select: { commodityName: true } } } } },
   });
   if (!order) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } }); return; }
@@ -163,7 +182,7 @@ router.post('/:id/reject', authorize(UserRole.FARMER), asyncHandler(async (req: 
   if (order.status !== 'PENDING_APPROVAL') { res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: `Already ${order.status}` } }); return; }
 
   const updated = await prisma.$transaction(async (tx: any) => {
-    const rejected = await tx.order.update({ where: { id: req.params.id }, data: { status: 'REJECTED', rejectedReason: reason || 'Not specified', otpCode: null } });
+    const rejected = await tx.order.update({ where: { id: paramString(req.params.id) }, data: { status: 'REJECTED', rejectedReason: reason || 'Not specified', otpCode: null } });
     await tx.notification.create({
       data: { userId: order.buyerId, type: 'SYSTEM', title: 'Order Rejected',
         message: `Your order for ${order.quantityKg} kg of ${order.listing.lot.commodityName} was rejected. Reason: ${reason || 'Not specified'}`,
@@ -176,12 +195,12 @@ router.post('/:id/reject', authorize(UserRole.FARMER), asyncHandler(async (req: 
 
 // ── POST /orders/:id/regenerate-otp ──
 router.post('/:id/regenerate-otp', authorize(UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
-  const order: any = await prisma.order.findUnique({ where: { id: req.params.id }, include: { listing: { select: { sellerId: true } } } });
+  const order: any = await prisma.order.findUnique({ where: { id: paramString(req.params.id) }, include: { listing: { select: { sellerId: true } } } });
   if (!order || order.listing.sellerId !== req.user!.userId) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } }); return; }
   if (order.status !== 'PENDING_APPROVAL') { res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Only for pending orders' } }); return; }
 
   const newOtp = generateOTP();
-  const updated = await prisma.order.update({ where: { id: req.params.id }, data: { otpCode: newOtp, otpExpiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+  const updated = await prisma.order.update({ where: { id: paramString(req.params.id) }, data: { otpCode: newOtp, otpExpiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
   res.json({ success: true, data: { otpCode: newOtp, expiresAt: updated.otpExpiresAt } });
 }));
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -9,46 +9,26 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
 import { Plus, Snowflake, BarChart3, Package, Sprout, Download, Receipt, FileDown, Clock } from 'lucide-react';
-import { api } from '@/lib/api-client';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatWeight, formatCurrency, formatDate, formatPercent, getCommodityLabel } from '@/lib/formatters';
 import type { InventoryLot, Chamber } from '@/types/models';
 import styles from './wms-dashboard.module.css';
 
 export default function WMSDashboard() {
   const router = useRouter();
-  const [lots, setLots] = useState<InventoryLot[]>([]);
-  const [chambers, setChambers] = useState<Chamber[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { data: lots, loading: lotsLoading } = useApiQuery<InventoryLot[]>('/inventory/lots');
+  const { data: chambers, loading: chambersLoading } = useApiQuery<Chamber[]>('/chambers');
 
-  const loadData = async () => {
-    try {
-      const [lotsRes, chambersRes] = await Promise.allSettled([
-        api.get<any>('/inventory/lots'),
-        api.get<any>('/chambers'),
-      ]);
+  const loading = lotsLoading || chambersLoading;
+  const lotList = lots || [];
+  const chamberList = chambers || [];
 
-      if (lotsRes.status === 'fulfilled' && lotsRes.value.success) {
-        setLots(lotsRes.value.data || []);
-      }
-      if (chambersRes.status === 'fulfilled' && chambersRes.value.success) {
-        setChambers(chambersRes.value.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to load WMS data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const totalCapacity = chambers.reduce((s, c) => s + Number(c.capacityMt || 0), 0);
-  const totalOccupied = chambers.reduce((s, c) => s + Number(c.occupiedMt || 0), 0);
+  const totalCapacity = chamberList.reduce((s, c) => s + Number(c.capacityMt || 0), 0);
+  const totalOccupied = chamberList.reduce((s, c) => s + Number(c.occupiedMt || 0), 0);
   const utilization = totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : 0;
-  const activeLots = lots.filter((l) => l.status === 'STORED' || l.status === 'PARTIALLY_RELEASED').length;
-  const totalStored = lots.reduce((s, l) => s + Number(l.currentWeightKg || 0), 0);
+  const activeLots = lotList.filter((l) => l.status === 'STORED' || l.status === 'PARTIALLY_RELEASED').length;
+  const totalStored = lotList.reduce((s, l) => s + Number(l.currentWeightKg || 0), 0);
 
   const lotColumns: Column<InventoryLot>[] = [
     {
@@ -123,10 +103,10 @@ export default function WMSDashboard() {
       <main className={styles.content}>
         {/* KPI Row */}
         <div className={`${styles.statsGrid} stagger-in`}>
-          <StatsCard title="Chambers" value={chambers.length} subtitle={`${chambers.filter(c => c.status === 'OPERATIONAL').length} operational`} icon={<Snowflake size={20} />} variant="primary" />
+          <StatsCard title="Chambers" value={chamberList.length} subtitle={`${chamberList.filter(c => c.status === 'OPERATIONAL').length} operational`} icon={<Snowflake size={20} />} variant="primary" />
           <StatsCard title="Utilization" value={formatPercent(utilization)} subtitle={`${totalOccupied} / ${totalCapacity} MT`} icon={<BarChart3 size={20} />} variant={utilization > 80 ? 'danger' : 'accent'} />
           <StatsCard title="Active Lots" value={activeLots} subtitle={formatWeight(totalStored)} icon={<Package size={20} />} variant="info" />
-          <StatsCard title="Total Depositors" value={new Set(lots.map(l => l.depositorId)).size} icon={<Sprout size={20} />} variant="warning" />
+          <StatsCard title="Total Depositors" value={new Set(lotList.map(l => l.depositorId)).size} icon={<Sprout size={20} />} variant="warning" />
         </div>
 
         {/* Chamber Visualization + Quick Actions */}
@@ -135,7 +115,7 @@ export default function WMSDashboard() {
           <Card padding="md">
             <CardHeader title="Chamber Occupancy" subtitle="Real-time storage utilization" />
             <div className={styles.chamberGrid}>
-              {chambers.map((ch) => {
+              {chamberList.map((ch) => {
                 const cap = Number(ch.capacityMt || 0);
                 const occ_mt = Number(ch.occupiedMt || 0);
                 const occ = cap > 0 ? (occ_mt / cap) * 100 : 0;
@@ -169,7 +149,7 @@ export default function WMSDashboard() {
                   </div>
                 );
               })}
-              {chambers.length === 0 && !loading && (
+              {chamberList.length === 0 && !loading && (
                 <div className={styles.emptyChambers}>
                   <Snowflake size={36} style={{ color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-2)' }} />
                   <p>No chambers configured</p>
@@ -217,7 +197,7 @@ export default function WMSDashboard() {
         {/* Upcoming Releases */}
         {(() => {
           const now = new Date();
-          const upcoming = lots
+          const upcoming = lotList
             .filter(l => l.expectedRelease && (l.status === 'STORED' || l.status === 'PARTIALLY_RELEASED'))
             .map(l => {
               const releaseDate = new Date(l.expectedRelease!);
@@ -255,7 +235,7 @@ export default function WMSDashboard() {
           <div style={{ padding: 'var(--space-5) var(--space-5) 0' }}>
             <CardHeader
               title="Inventory Lots"
-              subtitle={`${lots.length} total lots`}
+              subtitle={`${lotList.length} total lots`}
               action={
                 <Button variant="primary" size="sm" onClick={() => router.push('/wms/inventory')}>
                   View All
@@ -265,7 +245,7 @@ export default function WMSDashboard() {
           </div>
           <DataTable
             columns={lotColumns}
-            data={lots.slice(0, 10)}
+            data={lotList.slice(0, 10)}
             loading={loading}
             emptyMessage="No inventory lots yet"
             onRowClick={(row) => router.push(`/wms/inventory/${row.id}`)}

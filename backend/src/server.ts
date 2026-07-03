@@ -4,23 +4,42 @@ import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './config/logger';
 import { startTemperatureSimulator, stopTemperatureSimulator } from './modules/temperature/temperature-simulator';
 import { startAlertEngine, stopAlertEngine } from './modules/notifications/alert-engine';
+import { startMqttIngestion, stopMqttIngestion } from './modules/temperature/mqtt-ingestion';
+import { connectRedis, disconnectRedis } from './config/redis';
 
 async function startServer(): Promise<void> {
   // Connect to database
   await connectDatabase();
 
+  // Connect to Redis (non-blocking — app works without it)
+  const redisConnected = await connectRedis();
+  if (!redisConnected) {
+    logger.warn('Running without Redis — rate limiting and caching will use in-memory fallbacks');
+  }
+
   // Start HTTP server
-  const server = app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, async () => {
     logger.info(`ColdStorage API server running`, {
       port: env.PORT,
       environment: env.NODE_ENV,
       apiPrefix: env.API_PREFIX,
+      redis: redisConnected ? 'connected' : 'degraded',
     });
     logger.info(`Health check: http://localhost:${env.PORT}/health`);
     logger.info(`API base: http://localhost:${env.PORT}${env.API_PREFIX}`);
 
-    // Start background services in dev mode
-    startTemperatureSimulator();
+    // ── Background Services ───────────────────────────────
+    // MQTT ingestion: runs in all environments when MQTT_BROKER_URL is set.
+    // Falls back to no-op in dev if broker is not configured.
+    await startMqttIngestion();
+
+    // Dev simulator: only runs if MQTT is NOT configured and we're in development.
+    // Provides realistic fake sensor data for local testing without real hardware.
+    if (env.NODE_ENV === 'development' && !process.env.MQTT_BROKER_URL) {
+      startTemperatureSimulator();
+    }
+
+    // Alert engine: runs in all environments to catch temp/capacity/expiry alerts.
     startAlertEngine();
   });
 
@@ -29,8 +48,10 @@ async function startServer(): Promise<void> {
     logger.info(`${signal} received. Starting graceful shutdown...`);
 
     server.close(async () => {
+      stopMqttIngestion();
       stopTemperatureSimulator();
       stopAlertEngine();
+      await disconnectRedis();
       await disconnectDatabase();
       logger.info('Server shut down gracefully');
       process.exit(0);

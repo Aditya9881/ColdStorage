@@ -4,6 +4,7 @@ import { authenticate } from '../auth/auth.middleware';
 import { sendSuccess, errors } from '../../shared/utils/api-response';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
 import { parsePagination, buildPaginationMeta } from '../../shared/utils/pagination';
 
 const router = Router();
@@ -49,7 +50,7 @@ router.get('/unread-count', asyncHandler(async (req: AuthenticatedRequest, res) 
  */
 router.patch('/:id/read', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const notification = await prisma.notification.findFirst({
-    where: { id: req.params.id, userId: req.user!.userId },
+    where: { id: paramString(req.params.id), userId: req.user!.userId },
   });
 
   if (!notification) {
@@ -58,7 +59,7 @@ router.patch('/:id/read', asyncHandler(async (req: AuthenticatedRequest, res) =>
   }
 
   const updated = await prisma.notification.update({
-    where: { id: req.params.id },
+    where: { id: paramString(req.params.id) },
     data: { read: true },
   });
 

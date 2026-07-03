@@ -156,14 +156,14 @@ export default function LoginPage() {
             <div className={styles.demoSection}>
               <span className={styles.demoLabel}>Demo Credentials</span>
               <div className={styles.demoCards}>
-                <button type="button" className={styles.demoCard} onClick={() => { setPhone('9999999999'); setPassword('admin123'); }}>
+                <button type="button" className={styles.demoCard} onClick={() => { setPhone('9999999999'); setPassword('test1234'); }}>
                   <span className={styles.demoIcon}><ShieldCheck size={16} /></span>
                   <div>
                     <span className={styles.demoRole}>Admin</span>
                     <span className={styles.demoDesc}>Platform management</span>
                   </div>
                 </button>
-                <button type="button" className={styles.demoCard} onClick={() => { setPhone('9876543210'); setPassword('owner123'); }}>
+                <button type="button" className={styles.demoCard} onClick={() => { setPhone('9876543210'); setPassword('test1234'); }}>
                   <span className={styles.demoIcon}><Factory size={16} /></span>
                   <div>
                     <span className={styles.demoRole}>Owner</span>

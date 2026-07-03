@@ -43,9 +43,9 @@ export function DataTable<T extends { id: string }>({
           <tbody>
             {Array.from({ length: 5 }).map((_, i) => (
               <tr key={i} className={styles.loadingRow}>
-                {columns.map((col) => (
+                {columns.map((col, j) => (
                   <td key={col.key}>
-                    <div className={styles.loadingBar} style={{ width: `${50 + Math.random() * 40}%` }} />
+                    <div className={styles.loadingBar} style={{ width: `${55 + ((i * 7 + j * 13) % 35)}%` }} />
                   </td>
                 ))}
               </tr>

@@ -13,6 +13,23 @@ interface RegisterInput {
   password: string;
   role: UserRole;
   facilityId?: string;
+  // Address
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  district?: string;
+  // KYC
+  aadhaarNumber?: string;
+  panNumber?: string;
+  // Farmer-specific
+  landHolding?: string;
+  khasraNumber?: string;
+  villageName?: string;
+  // Buyer-specific
+  gstNumber?: string;
+  businessName?: string;
+  businessType?: string;
 }
 
 interface LoginInput {
@@ -71,6 +88,23 @@ export class AuthService {
         role: input.role,
         status: UserStatus.ACTIVE, // For Phase 1; add OTP verification later
         facilityId: input.facilityId || null,
+        // Address
+        addressLine1: input.addressLine1 || null,
+        city: input.city || null,
+        state: input.state || null,
+        pincode: input.pincode || null,
+        district: input.district || null,
+        // KYC
+        aadhaarNumber: input.aadhaarNumber || null,
+        panNumber: input.panNumber || null,
+        // Farmer-specific
+        landHolding: input.landHolding || null,
+        khasraNumber: input.khasraNumber || null,
+        villageName: input.villageName || null,
+        // Buyer-specific
+        gstNumber: input.gstNumber || null,
+        businessName: input.businessName || null,
+        businessType: input.businessType || null,
       },
     });
 
@@ -274,6 +308,16 @@ export class AuthService {
     // Omit password hash
     const { passwordHash, ...userWithoutPassword } = user;
     return userWithoutPassword;
+  }
+
+  /**
+   * Save push notification token for a user
+   */
+  async savePushToken(userId: string, token: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { pushToken: token },
+    });
   }
 }
 

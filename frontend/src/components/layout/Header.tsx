@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, Sun, Moon, Package, Receipt, Users } from 'lucide-react';
+import { Search, Bell, Sun, Moon, Package, Receipt, Users, Menu } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useSidebar } from '@/hooks/useSidebar';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { api } from '@/lib/api-client';
 import styles from './Header.module.css';
@@ -25,6 +26,7 @@ const roleLabels: Record<string, string> = {
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { toggleSidebar } = useSidebar();
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [profile, setProfile] = useState<{ fullName: string; role: string } | null>(null);
@@ -110,6 +112,13 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
     <>
       <header className={styles.header}>
         <div className={styles.left}>
+          <button
+            className={styles.menuBtn}
+            onClick={toggleSidebar}
+            aria-label="Toggle Menu"
+          >
+            <Menu size={20} />
+          </button>
           <div>
             <h1 className={styles.title}>{title}</h1>
             {subtitle && <p className={styles.subtitle}>{subtitle}</p>}

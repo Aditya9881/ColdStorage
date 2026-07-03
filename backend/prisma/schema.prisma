@@ -150,6 +150,16 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum UserDocType {
+  AADHAAR_FRONT
+  AADHAAR_BACK
+  PAN_CARD
+  GST_CERTIFICATE
+  BUSINESS_LICENSE
+  PHOTO_ID
+  OTHER
+}
+
 // ── MODELS ────────────────────────────────────
 
 /// Core users table — all stakeholders (admins, owners, staff, farmers, buyers)
@@ -176,9 +186,33 @@ model User {
   state         String? @db.VarChar(100)
   pincode       String? @db.VarChar(6)
 
+  // KYC — Identity Verification
+  aadhaarNumber      String?  @unique @map("aadhaar_number") @db.VarChar(12)
+  aadhaarVerified    Boolean  @default(false) @map("aadhaar_verified")
+  panNumber          String?  @unique @map("pan_number") @db.VarChar(10)
+  kycVerified        Boolean  @default(false) @map("kyc_verified")
+  kycVerifiedAt      DateTime? @map("kyc_verified_at") @db.Timestamptz()
+  kycSubmittedAt     DateTime? @map("kyc_submitted_at") @db.Timestamptz()
+  kycRejectionReason String?  @map("kyc_rejection_reason") @db.Text
+  kycVerifiedById    String?  @map("kyc_verified_by") @db.Uuid
+
+  // Farmer-specific KYC
+  landHolding     String? @map("land_holding") @db.VarChar(100)  // e.g. "5 acres"
+  khasraNumber    String? @map("khasra_number") @db.VarChar(50)  // Land record number
+  villageName     String? @map("village_name") @db.VarChar(100)
+  district        String? @db.VarChar(100)
+
+  // Buyer-specific KYC
+  gstNumber       String? @unique @map("gst_number") @db.VarChar(15)
+  businessName    String? @map("business_name") @db.VarChar(255)
+  businessType    String? @map("business_type") @db.VarChar(100) // e.g. "Wholesaler", "Retailer", "Processor"
+
   // Auth
   passwordHash String    @map("password_hash") @db.VarChar(255)
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz()
+
+  // Push Notifications
+  pushToken    String?   @map("push_token") @db.VarChar(255)
 
   // Metadata
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
@@ -204,6 +238,8 @@ model User {
   marketListings    MarketListing[]     @relation("ListingSeller")
   buyerOrders       Order[]             @relation("OrderBuyer")
   facilityReviews   FacilityReview[]
+  kycDocuments      UserDocument[]     @relation("UserKycDocs")
+  reviewedKycDocs   UserDocument[]     @relation("KycDocReviewer")
 
   @@index([role])
   @@index([facilityId])
@@ -223,6 +259,36 @@ model UserSession {
 
   @@index([userId])
   @@map("user_sessions")
+}
+
+/// KYC documents uploaded by users (Aadhaar, PAN, GST certificate photos)
+model UserDocument {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  user            User           @relation("UserKycDocs", fields: [userId], references: [id], onDelete: Cascade)
+
+  documentType    UserDocType    @map("document_type")
+  documentNumber  String?        @map("document_number") @db.VarChar(50) // Aadhaar/PAN/GST number
+  fileUrl         String         @map("file_url") @db.VarChar(512)
+  thumbnailUrl    String?        @map("thumbnail_url") @db.VarChar(512)
+  fileSizeBytes   Int?           @map("file_size_bytes")
+  mimeType        String?        @map("mime_type") @db.VarChar(50)
+
+  // Review
+  status          DocumentStatus @default(PENDING_REVIEW)
+  rejectionReason String?        @map("rejection_reason") @db.Text
+  reviewedById    String?        @map("reviewed_by") @db.Uuid
+  reviewer        User?          @relation("KycDocReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?      @map("reviewed_at") @db.Timestamptz()
+
+  // Metadata
+  uploadedAt      DateTime       @default(now()) @map("uploaded_at") @db.Timestamptz()
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([userId])
+  @@index([status])
+  @@index([documentType])
+  @@map("user_documents")
 }
 
 /// Cold storage facilities
@@ -268,13 +334,14 @@ model Facility {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   // Relations
-  staff     User[]             @relation("FacilityStaff")
-  chambers  Chamber[]
-  documents FacilityDocument[]
-  pricing   FacilityPricing[]
-  lots      InventoryLot[]
-  invoices  Invoice[]
-  reviews   FacilityReview[]
+  staff        User[]             @relation("FacilityStaff")
+  chambers     Chamber[]
+  documents    FacilityDocument[]
+  pricing      FacilityPricing[]
+  lots         InventoryLot[]
+  invoices     Invoice[]
+  reviews      FacilityReview[]
+  iotDevices   IoTDevice[]
 
   @@index([status])
   @@index([state])
@@ -314,6 +381,7 @@ model Chamber {
   // Relations
   lots                InventoryLot[]
   temperatureReadings TemperatureReading[]
+  iotDevices          IoTDevice[]
 
   @@unique([facilityId, chamberNumber])
   @@index([facilityId])
@@ -437,9 +505,10 @@ model InventoryLot {
   createdBy   User     @relation("LotCreator", fields: [createdById], references: [id])
 
   // Relations
-  transactions InventoryTransaction[]
-  invoices     Invoice[]
-  listings     MarketListing[]
+  transactions      InventoryTransaction[]
+  invoices          Invoice[]
+  listings          MarketListing[]
+  warehouseReceipt  WarehouseReceipt?
 
   @@index([facilityId])
   @@index([chamberId])
@@ -691,7 +760,7 @@ model Order {
 
   // Status & OTP
   status           OrderStatus   @default(PENDING_APPROVAL)
-  otpCode          String?       @map("otp_code") @db.VarChar(6)
+  otpCode          String?       @map("otp_code") @db.VarChar(72)
   otpExpiresAt     DateTime?     @map("otp_expires_at") @db.Timestamptz()
   approvedAt       DateTime?     @map("approved_at") @db.Timestamptz()
   rejectedReason   String?       @map("rejected_reason") @db.Text
@@ -700,11 +769,15 @@ model Order {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
+  // Relations
+  escrow EscrowTransaction?
+
   @@index([listingId])
   @@index([buyerId])
   @@index([status])
   @@map("orders")
 }
+
 
 /// Farmer reviews/ratings for cold storage facilities
 model FacilityReview {
@@ -725,3 +798,92 @@ model FacilityReview {
   @@index([rating])
   @@map("facility_reviews")
 }
+
+// ── NEW MODELS: Phase 3+ ──────────────────────────────────
+
+/// Electronic Warehouse Receipt (eNWR) — WDRA-aligned digital commodity receipt
+/// Enables pledge-based agri-financing (Kisan Credit Card, FPO collateral)
+model WarehouseReceipt {
+  id            String       @id @default(uuid()) @db.Uuid
+  lotId         String       @unique @map("lot_id") @db.Uuid
+  lot           InventoryLot @relation(fields: [lotId], references: [id])
+
+  receiptNumber String       @unique @map("receipt_number") @db.VarChar(50)
+  wdraRepoId    String?      @map("wdra_repo_id") @db.VarChar(100) /// WDRA electronic repository ID
+  isNegotiable  Boolean      @default(true) @map("is_negotiable")
+
+  // Pledge / Financing
+  isPledged     Boolean      @default(false) @map("is_pledged")
+  pledgedTo     String?      @map("pledged_to") @db.VarChar(255) /// Bank / NBFC name
+  pledgeAmount  Decimal?     @map("pledge_amount") @db.Decimal(12, 2)
+  pledgeDate    DateTime?    @map("pledge_date") @db.Timestamptz()
+
+  // Validity
+  issuedAt      DateTime     @default(now()) @map("issued_at") @db.Timestamptz()
+  expiresAt     DateTime?    @map("expires_at") @db.Timestamptz()
+  status        String       @default("ACTIVE") @db.VarChar(20) /// ACTIVE | PLEDGED | REDEEMED | EXPIRED
+
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([status])
+  @@index([isPledged])
+  @@map("warehouse_receipts")
+}
+
+/// Marketplace escrow transaction — holds buyer payment until seller approves via OTP
+/// Prevents fraud on the Farmer→Buyer commodity exchange
+model EscrowTransaction {
+  id               String   @id @default(uuid()) @db.Uuid
+  orderId          String   @unique @map("order_id") @db.Uuid
+  order            Order    @relation(fields: [orderId], references: [id])
+
+  amount           Decimal  @db.Decimal(12, 2)
+  buyerPaidAt      DateTime? @map("buyer_paid_at") @db.Timestamptz()
+  sellerReleasedAt DateTime? @map("seller_released_at") @db.Timestamptz()
+
+  // Settlement after loan deduction
+  loanDeduction    Decimal  @default(0) @map("loan_deduction") @db.Decimal(12, 2)
+  netToSeller      Decimal? @map("net_to_seller") @db.Decimal(12, 2)
+
+  // Payment gateway
+  pgReferenceId    String?  @map("pg_reference_id") @db.VarChar(100)
+  pgProvider       String?  @map("pg_provider") @db.VarChar(50) /// razorpay | payu | cashfree
+
+  status           String   @default("PENDING") @db.VarChar(20) /// PENDING | HELD | RELEASED | REFUNDED | DISPUTED
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([status])
+  @@index([orderId])
+  @@map("escrow_transactions")
+}
+
+/// Physical IoT device registry — maps hardware sensors to chambers
+/// Bridges MQTT telemetry to the relational DB (device → chamber → facility)
+model IoTDevice {
+  id              String   @id @default(uuid()) @db.Uuid
+  facilityId      String   @map("facility_id") @db.Uuid
+  facility        Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  chamberId       String?  @map("chamber_id") @db.Uuid
+  chamber         Chamber? @relation(fields: [chamberId], references: [id])
+
+  deviceId        String   @unique @map("device_id") @db.VarChar(100) /// Hardware MAC / serial
+  deviceType      String   @map("device_type") @db.VarChar(50) /// ESP32 | DHT22 | SHT31 | Raspberry Pi
+  mqttTopic       String   @map("mqtt_topic") @db.VarChar(255) /// coldstorage/{facilityId}/{chamberId}/telemetry
+
+  isActive        Boolean  @default(true) @map("is_active")
+  lastHeartbeat   DateTime? @map("last_heartbeat") @db.Timestamptz()
+  firmwareVersion String?  @map("firmware_version") @db.VarChar(20)
+  description     String?  @db.Text
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([facilityId])
+  @@index([chamberId])
+  @@index([isActive])
+  @@map("iot_devices")
+}
+

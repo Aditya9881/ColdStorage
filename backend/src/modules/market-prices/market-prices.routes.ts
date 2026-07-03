@@ -1,10 +1,8 @@
-import { Router } from 'express';
-import { authenticate } from '../auth/auth.middleware';
+import { Router, Request } from 'express';
 import { asyncHandler } from '../../shared/middleware/error-handler';
-import { AuthenticatedRequest } from '../../shared/types';
 
 const router = Router();
-router.use(authenticate);
+// Market prices are PUBLIC — guests can browse prices without login
 
 // Simulated mandi price data — in production would come from Agmarknet/e-NAM APIs
 const MANDI_PRICES: Record<string, { commodity: string; category: string; unit: string; mandis: { name: string; state: string; minPrice: number; maxPrice: number; modalPrice: number }[] }> = {
@@ -58,7 +56,7 @@ function addVariation(base: number, range: number): number {
 }
 
 // ── GET /market-prices ──
-router.get('/', asyncHandler(async (_req: AuthenticatedRequest, res) => {
+router.get('/', asyncHandler(async (_req: Request, res) => {
   const today = new Date().toISOString().split('T')[0];
   const prices = Object.entries(MANDI_PRICES).map(([, data]) => ({
     ...data, date: today,
@@ -73,7 +71,7 @@ router.get('/', asyncHandler(async (_req: AuthenticatedRequest, res) => {
 }));
 
 // ── GET /market-prices/trends ──
-router.get('/trends', asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.get('/trends', asyncHandler(async (req: Request, res) => {
   const { commodity = 'POTATO', mandi } = req.query;
   const commodityData = MANDI_PRICES[commodity as string];
   if (!commodityData) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Commodity not found' } }); return; }
