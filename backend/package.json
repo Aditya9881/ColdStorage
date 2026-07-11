@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "npx prisma generate && tsc",
     "start": "node dist/server.js",
-    "render-build": "npm install --include=dev && npx prisma generate && tsc && npx prisma migrate deploy",
+    "render-build": "npm install --include=dev && npx prisma generate && tsc",
     "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
