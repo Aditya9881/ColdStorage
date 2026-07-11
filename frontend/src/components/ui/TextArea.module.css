@@ -1,0 +1,92 @@
+/* ============================================
+   TextArea Component — Multi-line Input
+   ============================================ */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--tracking-wide);
+}
+
+.required {
+  color: var(--color-danger-400);
+  margin-left: var(--space-0-5);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: var(--space-2-5) var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  resize: none;
+}
+
+.textarea.error {
+  border-color: var(--color-danger-400);
+}
+
+.textarea.error:focus {
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12);
+}
+
+/* ── Footer (helper text + char count) ──── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 18px;
+}
+
+.helperText {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.errorText {
+  font-size: var(--text-xs);
+  color: var(--color-danger-400);
+}
+
+.charCount {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.charCountMax {
+  color: var(--color-danger-400);
+}

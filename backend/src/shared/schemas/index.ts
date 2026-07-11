@@ -13,6 +13,17 @@ export const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+export const sendOtpSchema = z.object({
+  phone: indianPhone,
+  purpose: z.enum(['LOGIN', 'REGISTER']).optional().default('LOGIN'),
+});
+
+export const verifyOtpSchema = z.object({
+  phone: indianPhone,
+  otp: z.string().length(6, 'OTP must be exactly 6 digits').regex(/^[0-9]{6}$/, 'OTP must be numeric'),
+  purpose: z.enum(['LOGIN', 'REGISTER']).optional().default('LOGIN'),
+});
+
 export const registerSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(255),
   phone: indianPhone,
@@ -27,8 +38,8 @@ export const registerSchema = z.object({
   pincode: z.string().length(6, 'Pincode must be exactly 6 digits').regex(/^[0-9]{6}$/, 'Invalid pincode'),
   district: z.string().max(100).optional().nullable(),
 
-  // KYC — Identity
-  aadhaarNumber: z.string().length(12, 'Aadhaar must be exactly 12 digits').regex(/^[0-9]{12}$/, 'Invalid Aadhaar number'),
+  // KYC — Identity (optional at registration, mandatory via document upload)
+  aadhaarNumber: z.string().length(12, 'Aadhaar must be exactly 12 digits').regex(/^[0-9]{12}$/, 'Invalid Aadhaar number').optional().nullable(),
   panNumber: z.string().length(10, 'PAN must be exactly 10 characters').regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format (e.g. ABCDE1234F)').optional().nullable(),
 
   // Farmer-specific
@@ -40,6 +51,10 @@ export const registerSchema = z.object({
   gstNumber: z.string().length(15, 'GST must be 15 characters').regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GST format').optional().nullable(),
   businessName: z.string().max(255).optional().nullable(),
   businessType: z.string().max(100).optional().nullable(),
+
+  // Owner-specific
+  csRegistrationNumber: z.string().max(50).optional().nullable(), // Cold Storage registration number
+  fssaiNumber: z.string().max(20).optional().nullable(),          // FSSAI license number
 });
 
 export const refreshTokenSchema = z.object({
@@ -287,3 +302,40 @@ export const paginationSchema = z.object({
 export const uuidParamSchema = z.object({
   id: z.string().uuid('Invalid ID format'),
 });
+
+// ── Booking Schemas ──
+
+const commodityCategories = ['POTATO', 'ONION', 'VEGETABLES', 'FRUITS', 'DAIRY', 'FROZEN_SEAFOOD', 'FROZEN_MEAT', 'PROCESSED_FOOD', 'SEEDS', 'OTHER'] as const;
+
+export const createBookingSchema = z.object({
+  facilityId: z.string().uuid('Invalid facility ID'),
+  commodityCategory: z.enum(commodityCategories),
+  commodityName: z.string().min(2, 'Commodity name required').max(100),
+  estimatedWeightKg: z.number().positive('Weight must be positive').max(100000),
+  estimatedBags: z.number().int().positive().optional(),
+  preferredDate: z.string().min(1, 'Date is required'), // ISO date string
+  preferredSlot: z.enum(['MORNING', 'AFTERNOON', 'EVENING']).optional(),
+  storageDuration: z.number().int().positive().max(365).optional(),
+  farmerNote: z.string().max(500).optional(),
+});
+
+const bookingStatuses = [
+  'PENDING', 'CONFIRMED', 'ARRIVED', 'WEIGHING', 'STORED',
+  'DISPATCH_REQUESTED', 'DISPATCHING', 'DISPATCHED', 'COMPLETED',
+  'CANCELLED', 'REJECTED',
+] as const;
+
+export const updateBookingStatusSchema = z.object({
+  status: z.enum(bookingStatuses),
+  chamberId: z.string().uuid().optional(),
+  actualWeightKg: z.number().positive().optional(),
+  actualBags: z.number().int().positive().optional(),
+  ratePerUnit: z.number().positive().optional(),
+  totalAmount: z.number().positive().optional(),
+  advancePaid: z.number().min(0).optional(),
+  ownerNote: z.string().max(500).optional(),
+  cancelReason: z.string().max(500).optional(),
+  dispatchWeightKg: z.number().positive().optional(),
+  dispatchNote: z.string().max(500).optional(),
+});
+

@@ -175,6 +175,8 @@ export class FacilitiesService {
             occupiedMt: true,
             status: true,
             commodityCategory: true,
+            targetTempMin: true,
+            targetTempMax: true,
           },
         },
         documents: {

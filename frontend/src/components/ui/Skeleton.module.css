@@ -1,0 +1,88 @@
+/* ============================================
+   Skeleton Component — Loading States
+   ============================================ */
+
+/* ── Pulse Animation ──────────────────────── */
+.skeletonPulse {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 25%,
+    var(--color-bg-elevated) 50%,
+    var(--color-bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Variants ─────────────────────────────── */
+.skeletonText {
+  width: 100%;
+}
+
+.skeletonCircular {
+  border-radius: var(--radius-full);
+}
+
+.skeletonRectangular {
+  border-radius: var(--radius-md);
+  width: 100%;
+}
+
+/* ── Card Skeleton ────────────────────────── */
+.skeletonCard {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.skeletonCardBody {
+  padding: var(--space-4);
+}
+
+/* ── Table Skeleton ───────────────────────── */
+.skeletonTable {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.skeletonTableHeader {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+}
+
+.skeletonTableRow {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.skeletonTableRow:last-child {
+  border-bottom: none;
+}
+
+/* ── Grid Layout ──────────────────────────── */
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.skeletonStatCard {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+}

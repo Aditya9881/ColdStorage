@@ -1,0 +1,74 @@
+/* ============================================
+   Chart Components — Shared Styles
+   ============================================ */
+
+.chartContainer {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base);
+}
+
+.chartContainer:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.chartHeader {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.chartTitle {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.chartSubtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-1);
+  line-height: 1.4;
+}
+
+/* Recharts tooltip overrides for better dark-mode compat */
+.chartContainer :global(.recharts-tooltip-wrapper) {
+  z-index: 10;
+}
+
+.chartContainer :global(.recharts-legend-wrapper) {
+  padding-top: var(--space-3) !important;
+}
+
+.chartContainer :global(.recharts-legend-item-text) {
+  color: var(--color-text-secondary) !important;
+}
+
+.chartContainer :global(.recharts-cartesian-grid-horizontal line),
+.chartContainer :global(.recharts-cartesian-grid-vertical line) {
+  opacity: 0.5;
+}
+
+/* Loading state for charts */
+.chartSkeleton {
+  height: 320px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 25%,
+    var(--color-bg-elevated) 50%,
+    var(--color-bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

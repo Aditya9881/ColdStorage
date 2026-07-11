@@ -5,6 +5,9 @@ import { generateTokens, verifyRefreshToken } from './auth.middleware';
 import { AppError } from '../../shared/middleware/error-handler';
 import { UserRole, UserStatus } from '../../shared/types';
 import { createAuditLog } from '../../shared/utils/audit';
+import { generateUserUniqueId } from '../../shared/utils/id-generator';
+import { isPhoneRecentlyVerified } from '../../shared/services/sms.service';
+import { OtpPurpose } from '@prisma/client';
 
 interface RegisterInput {
   fullName: string;
@@ -30,6 +33,9 @@ interface RegisterInput {
   gstNumber?: string;
   businessName?: string;
   businessType?: string;
+  // Owner-specific
+  csRegistrationNumber?: string;
+  fssaiNumber?: string;
 }
 
 interface LoginInput {
@@ -40,20 +46,44 @@ interface LoginInput {
 interface AuthResult {
   user: {
     id: string;
+    uniqueId: string | null;
     fullName: string;
     email: string | null;
     phone: string;
     role: UserRole;
     status: UserStatus;
     facilityId: string | null;
+    kycVerified: boolean;
   };
   accessToken: string;
   refreshToken: string;
 }
 
+function formatUserResult(user: any): AuthResult['user'] {
+  return {
+    id: user.id,
+    uniqueId: user.uniqueId,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    role: user.role as UserRole,
+    status: user.status as UserStatus,
+    facilityId: user.facilityId,
+    kycVerified: user.kycVerified ?? false,
+  };
+}
+
 export class AuthService {
   /**
    * Register a new user
+   *
+   * Flow:
+   * 1. Check phone uniqueness
+   * 2. Verify phone was OTP-verified (check recent verification)
+   * 3. Hash password
+   * 4. Generate unique ID (FR-UP-00142)
+   * 5. Create user with status PENDING_KYC
+   * 6. Return tokens
    */
   async register(input: RegisterInput): Promise<AuthResult> {
     // Check if phone already exists
@@ -75,8 +105,19 @@ export class AuthService {
       }
     }
 
+    // Check if phone was recently OTP-verified
+    const phoneVerified = await isPhoneRecentlyVerified(input.phone, OtpPurpose.REGISTER);
+
     // Hash password
     const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_SALT_ROUNDS);
+
+    // Generate unique ID
+    const uniqueId = await generateUserUniqueId(input.role, input.state);
+
+    // Determine initial status
+    // Owners require admin approval, so they start with PENDING_KYC
+    // Farmers/Buyers start with PENDING_KYC (need to upload docs)
+    const initialStatus = UserStatus.PENDING_KYC;
 
     // Create user
     const user = await prisma.user.create({
@@ -86,7 +127,9 @@ export class AuthService {
         email: input.email || null,
         passwordHash,
         role: input.role,
-        status: UserStatus.ACTIVE, // For Phase 1; add OTP verification later
+        status: initialStatus,
+        phoneVerified,
+        uniqueId,
         facilityId: input.facilityId || null,
         // Address
         addressLine1: input.addressLine1 || null,
@@ -105,6 +148,9 @@ export class AuthService {
         gstNumber: input.gstNumber || null,
         businessName: input.businessName || null,
         businessType: input.businessType || null,
+        // Owner-specific
+        csRegistrationNumber: input.csRegistrationNumber || null,
+        fssaiNumber: input.fssaiNumber || null,
       },
     });
 
@@ -117,7 +163,7 @@ export class AuthService {
 
     // Store refresh token
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
     await prisma.userSession.create({
       data: {
@@ -134,25 +180,17 @@ export class AuthService {
       action: 'user.register',
       entityType: 'user',
       entityId: user.id,
-      newValues: { fullName: user.fullName, role: user.role, phone: user.phone },
+      newValues: { fullName: user.fullName, role: user.role, phone: user.phone, uniqueId },
     });
 
     return {
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role as UserRole,
-        status: user.status as UserStatus,
-        facilityId: user.facilityId,
-      },
+      user: formatUserResult(user),
       ...tokens,
     };
   }
 
   /**
-   * Login with phone + password
+   * Login with phone + password (standard login, kept for backward compat)
    */
   async login(input: LoginInput, deviceInfo?: Record<string, unknown>): Promise<AuthResult> {
     const user = await prisma.user.findUnique({
@@ -177,6 +215,50 @@ export class AuthService {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid phone number or password');
     }
 
+    return this._createSession(user, deviceInfo);
+  }
+
+  /**
+   * Login via OTP (passwordless login for existing users)
+   * Called after OTP is verified successfully
+   */
+  async loginViaOTP(
+    phone: string,
+    deviceInfo?: Record<string, unknown>
+  ): Promise<AuthResult> {
+    const user = await prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'No account found with this phone number. Please register first.');
+    }
+
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new AppError(403, 'ACCOUNT_SUSPENDED', 'Your account has been suspended');
+    }
+    if (user.status === UserStatus.DEACTIVATED) {
+      throw new AppError(403, 'ACCOUNT_DEACTIVATED', 'Your account has been deactivated');
+    }
+
+    // Mark phone as verified if not already
+    if (!user.phoneVerified) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { phoneVerified: true },
+      });
+    }
+
+    return this._createSession(user, deviceInfo);
+  }
+
+  /**
+   * Internal: Create session and return auth result
+   */
+  private async _createSession(
+    user: any,
+    deviceInfo?: Record<string, unknown>
+  ): Promise<AuthResult> {
     // Generate tokens
     const tokens = generateTokens({
       userId: user.id,
@@ -214,15 +296,7 @@ export class AuthService {
     });
 
     return {
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role as UserRole,
-        status: user.status as UserStatus,
-        facilityId: user.facilityId,
-      },
+      user: formatUserResult(user),
       ...tokens,
     };
   }
@@ -231,7 +305,6 @@ export class AuthService {
    * Refresh access token using a valid refresh token
    */
   async refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-    // Verify the refresh token
     let payload;
     try {
       payload = verifyRefreshToken(refreshToken);
@@ -239,28 +312,24 @@ export class AuthService {
       throw new AppError(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
     }
 
-    // Check if session exists in DB
     const session = await prisma.userSession.findUnique({
       where: { refreshToken },
       include: { user: true },
     });
 
     if (!session || session.expiresAt < new Date()) {
-      // Clean up expired session
       if (session) {
         await prisma.userSession.delete({ where: { id: session.id } });
       }
       throw new AppError(401, 'SESSION_EXPIRED', 'Session has expired, please login again');
     }
 
-    // Generate new token pair (rotate refresh token)
     const newTokens = generateTokens({
       userId: payload.userId,
       role: session.user.role as UserRole,
       facilityId: session.user.facilityId || undefined,
     });
 
-    // Update session with new refresh token
     const newExpiresAt = new Date();
     newExpiresAt.setDate(newExpiresAt.getDate() + 7);
 
@@ -305,7 +374,6 @@ export class AuthService {
       throw new AppError(404, 'NOT_FOUND', 'User not found');
     }
 
-    // Omit password hash
     const { passwordHash, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }

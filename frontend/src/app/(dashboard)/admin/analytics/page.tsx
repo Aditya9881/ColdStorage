@@ -8,6 +8,9 @@ import { StatsCard } from '@/components/ui/StatsCard';
 import { Badge } from '@/components/ui/Badge';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatWeight, formatPercent, getCommodityLabel } from '@/lib/formatters';
+import { AreaChart } from '@/components/charts';
+import { PieChart } from '@/components/charts';
+import { BarChart } from '@/components/charts';
 import styles from './analytics.module.css';
 
 interface OverviewData {
@@ -44,83 +47,6 @@ interface FacilityComparison {
   utilizationRate: number;
   lotCount: number;
   chamberCount: number;
-}
-
-// ── SVG Line Chart Component ────────────────────
-function IntakeChart({ data }: { data: IntakeTrendItem[] }) {
-  if (!data.length) return null;
-
-  const width = 700;
-  const height = 200;
-  const padL = 50;
-  const padR = 10;
-  const padT = 10;
-  const padB = 30;
-  const chartW = width - padL - padR;
-  const chartH = height - padT - padB;
-
-  const values = data.map(d => d.totalKg / 1000); // Convert to MT
-  const max = Math.max(...values, 1);
-
-  const getX = (i: number) => padL + (i / (data.length - 1)) * chartW;
-  const getY = (v: number) => padT + chartH - (v / max) * chartH;
-
-  const points = values.map((v, i) => `${getX(i)},${getY(v)}`);
-  const linePath = `M ${points.join(' L ')}`;
-  const areaPath = `${linePath} L ${getX(data.length - 1)},${padT + chartH} L ${padL},${padT + chartH} Z`;
-
-  // Y-axis labels (4 ticks)
-  const yTicks = [0, max * 0.25, max * 0.5, max * 0.75, max].map(v => Math.round(v));
-
-  // X-axis labels (every 5 days)
-  const xLabels = data.filter((_, i) => i % 5 === 0 || i === data.length - 1);
-
-  return (
-    <div className={styles.chartContainer}>
-      <svg className={styles.chartSvg} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <linearGradient id="intakeGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-primary-400)" />
-            <stop offset="100%" stopColor="transparent" />
-          </linearGradient>
-        </defs>
-
-        {/* Grid lines */}
-        {yTicks.map((tick, i) => (
-          <g key={i}>
-            <line x1={padL} y1={getY(tick)} x2={width - padR} y2={getY(tick)} className={styles.chartGridLine} />
-            <text x={padL - 6} y={getY(tick) + 3} textAnchor="end" className={styles.chartLabel}>{tick}</text>
-          </g>
-        ))}
-
-        {/* Area */}
-        <path d={areaPath} fill="url(#intakeGrad)" className={styles.chartArea} />
-
-        {/* Line */}
-        <path d={linePath} className={styles.chartLine} />
-
-        {/* Dots on non-zero days */}
-        {values.map((v, i) => v > 0 ? (
-          <circle key={i} cx={getX(i)} cy={getY(v)} r={3} className={styles.chartDot} />
-        ) : null)}
-
-        {/* X labels */}
-        {xLabels.map((item) => {
-          const idx = data.indexOf(item);
-          const label = new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-          return (
-            <text key={item.date} x={getX(idx)} y={height - 4} textAnchor="middle" className={styles.chartLabel}>
-              {label}
-            </text>
-          );
-        })}
-
-        {/* Y-axis label */}
-        <text x={6} y={padT + chartH / 2} textAnchor="middle" className={styles.chartLabel}
-          transform={`rotate(-90, 6, ${padT + chartH / 2})`}>MT</text>
-      </svg>
-    </div>
-  );
 }
 
 export default function AnalyticsPage() {
@@ -169,7 +95,19 @@ export default function AnalyticsPage() {
             subtitle="Daily intake volumes over the last 30 days (MT)"
           />
           {intakeTrend && intakeTrend.length > 0 ? (
-            <IntakeChart data={intakeTrend} />
+            <AreaChart
+              data={intakeTrend.map(d => ({
+                date: new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+                volume: d.totalKg / 1000,
+                lots: d.lotCount,
+              }))}
+              xAxisKey="date"
+              series={[
+                { dataKey: 'volume', name: 'Volume (MT)', gradient: { from: '#6366f1', to: '#818cf8' } },
+              ]}
+              height={280}
+              formatTooltip={(v: number) => `${v.toFixed(1)} MT`}
+            />
           ) : (
             <div className={styles.emptyState}>
               <TrendingUp size={32} style={{ color: 'var(--color-text-muted)' }} />
@@ -246,25 +184,15 @@ export default function AnalyticsPage() {
               subtitle="Inventory by commodity type"
             />
             {commodities && commodities.length > 0 ? (
-              <div className={styles.commodityList}>
-                {commodities.map((c) => {
-                  const color = commodityColors[c.category] || 'var(--color-text-muted)';
-                  return (
-                    <div key={c.category} className={styles.commodityItem}>
-                      <div className={styles.commodityIcon}>
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'block' }} />
-                      </div>
-                      <div className={styles.commodityInfo}>
-                        <span className={styles.commodityName}>{c.category.replace(/_/g, ' ')}</span>
-                        <span className={styles.commodityMeta}>
-                          {c.lotCount} lots · {formatWeight(c.totalWeightKg)}
-                        </span>
-                      </div>
-                      <Badge variant="muted">{c.totalWeightMt} MT</Badge>
-                    </div>
-                  );
-                })}
-              </div>
+              <PieChart
+                data={commodities.map(c => ({
+                  name: c.category.replace(/_/g, ' '),
+                  value: c.totalWeightMt,
+                  color: commodityColors[c.category] || undefined,
+                }))}
+                height={300}
+                formatValue={(v: number) => `${v.toLocaleString()} MT`}
+              />
             ) : (
               <div className={styles.emptyState}>
                 <BarChart3 size={32} style={{ color: 'var(--color-text-muted)' }} />
@@ -276,36 +204,23 @@ export default function AnalyticsPage() {
 
         {/* Facility Comparison — Full Width */}
         {facilityComp && facilityComp.length > 0 && (
-          <Card padding="md">
-            <CardHeader
-              title="Facility Comparison"
-              subtitle="Utilization comparison across active facilities"
-            />
-            <div className={styles.facilityCompList}>
-              {facilityComp.map((f) => (
-                <div key={f.id} className={styles.facilityCompRow}>
-                  <div className={styles.facilityCompMeta}>
-                    <span className={styles.facilityCompName}>{f.name}</span>
-                    <span className={styles.facilityCompStats}>
-                      {f.occupiedMt} / {f.capacityMt} MT · {f.chamberCount} chambers · {f.lotCount} lots
-                    </span>
-                  </div>
-                  <div className={styles.facilityCompBar}>
-                    <div className={styles.facilityCompTrack}>
-                      <div
-                        className={styles.facilityCompFill}
-                        style={{
-                          width: `${Math.max(Math.min(f.utilizationRate, 100), 1)}%`,
-                          background: `linear-gradient(90deg, ${getUtilColor(f.utilizationRate)}, ${getUtilColor(f.utilizationRate)}88)`,
-                        }}
-                      />
-                    </div>
-                    <span className={styles.facilityCompPct}>{formatPercent(f.utilizationRate)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <BarChart
+            data={facilityComp.map(f => ({
+              name: f.name.length > 20 ? f.name.substring(0, 20) + '…' : f.name,
+              utilization: f.utilizationRate,
+              occupied: f.occupiedMt,
+              capacity: f.capacityMt,
+            }))}
+            xAxisKey="name"
+            series={[
+              { dataKey: 'occupied', name: 'Occupied (MT)', color: '#6366f1' },
+              { dataKey: 'capacity', name: 'Total Capacity (MT)', color: '#334155' },
+            ]}
+            title="Facility Comparison"
+            subtitle="Utilization comparison across active facilities"
+            height={340}
+            formatTooltip={(v: number) => `${v.toLocaleString()} MT`}
+          />
         )}
       </main>
     </>

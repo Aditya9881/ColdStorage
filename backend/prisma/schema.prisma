@@ -24,9 +24,18 @@ enum UserRole {
 
 enum UserStatus {
   PENDING_VERIFICATION
+  PENDING_KYC
+  KYC_SUBMITTED
   ACTIVE
   SUSPENDED
   DEACTIVATED
+}
+
+enum OtpPurpose {
+  LOGIN
+  REGISTER
+  DISPATCH
+  RESET_PASSWORD
 }
 
 enum FacilityStatus {
@@ -150,6 +159,20 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum BookingStatus {
+  PENDING           // Booking created, awaiting confirmation
+  CONFIRMED         // Facility confirmed, farmer can come
+  ARRIVED           // Farmer arrived, QR scanned
+  WEIGHING          // Commodity being weighed
+  STORED            // Commodity stored, lot created
+  DISPATCH_REQUESTED // Farmer requests dispatch
+  DISPATCHING       // Dispatch in progress
+  DISPATCHED        // Fully dispatched
+  COMPLETED         // Transaction closed
+  CANCELLED         // Cancelled by farmer or owner
+  REJECTED          // Rejected by facility
+}
+
 enum UserDocType {
   AADHAAR_FRONT
   AADHAAR_BACK
@@ -165,6 +188,7 @@ enum UserDocType {
 /// Core users table — all stakeholders (admins, owners, staff, farmers, buyers)
 model User {
   id            String     @id @default(uuid()) @db.Uuid
+  uniqueId      String?    @unique @map("unique_id") @db.VarChar(20)
   fullName      String     @map("full_name") @db.VarChar(255)
   email         String?    @unique @db.VarChar(255)
   phone         String     @unique @db.VarChar(15)
@@ -207,6 +231,10 @@ model User {
   businessName    String? @map("business_name") @db.VarChar(255)
   businessType    String? @map("business_type") @db.VarChar(100) // e.g. "Wholesaler", "Retailer", "Processor"
 
+  // Owner-specific KYC
+  csRegistrationNumber String? @map("cs_registration_number") @db.VarChar(50) // Cold Storage registration
+  fssaiNumber          String? @map("fssai_number") @db.VarChar(20)          // FSSAI license number
+
   // Auth
   passwordHash String    @map("password_hash") @db.VarChar(255)
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz()
@@ -240,6 +268,8 @@ model User {
   facilityReviews   FacilityReview[]
   kycDocuments      UserDocument[]     @relation("UserKycDocs")
   reviewedKycDocs   UserDocument[]     @relation("KycDocReviewer")
+  farmerBookings    Booking[]          @relation("BookingFarmer")
+  scannedBookings   Booking[]          @relation("BookingScanner")
 
   @@index([role])
   @@index([facilityId])
@@ -289,6 +319,89 @@ model UserDocument {
   @@index([status])
   @@index([documentType])
   @@map("user_documents")
+}
+
+/// OTP records for phone verification, login, dispatch approval
+model PhoneOTP {
+  id        String     @id @default(uuid()) @db.Uuid
+  phone     String     @db.VarChar(15)
+  otp       String     @db.VarChar(72) // bcrypt hashed
+  purpose   OtpPurpose
+  attempts  Int        @default(0)
+  verified  Boolean    @default(false)
+  expiresAt DateTime   @map("expires_at") @db.Timestamptz()
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([phone, purpose])
+  @@map("phone_otp")
+}
+
+/// Storage booking — the core workflow entity
+model Booking {
+  id            String        @id @default(uuid()) @db.Uuid
+  bookingNumber String        @unique @map("booking_number") @db.VarChar(30)
+  qrCodeData    String?       @map("qr_code_data") @db.Text      // QR payload (JSON or token)
+  status        BookingStatus @default(PENDING)
+
+  // Who is booking
+  farmerId    String   @map("farmer_id") @db.Uuid
+  farmer      User     @relation("BookingFarmer", fields: [farmerId], references: [id])
+
+  // Where
+  facilityId  String   @map("facility_id") @db.Uuid
+  facility    Facility @relation(fields: [facilityId], references: [id])
+  chamberId   String?  @map("chamber_id") @db.Uuid
+  chamber     Chamber? @relation(fields: [chamberId], references: [id])
+
+  // What
+  commodityCategory CommodityCategory @map("commodity_category")
+  commodityName     String            @map("commodity_name") @db.VarChar(100)
+  estimatedWeightKg Decimal           @map("estimated_weight_kg") @db.Decimal(12, 2)
+  estimatedBags     Int?              @map("estimated_bags")
+
+  // When
+  preferredDate  DateTime  @map("preferred_date") @db.Date
+  preferredSlot  String?   @map("preferred_slot") @db.VarChar(20) // "MORNING", "AFTERNOON", "EVENING"
+  storageDuration Int?     @map("storage_duration")               // Days
+
+  // Arrival & Weighing
+  arrivedAt       DateTime? @map("arrived_at") @db.Timestamptz()
+  scannedById     String?   @map("scanned_by") @db.Uuid
+  scannedBy       User?     @relation("BookingScanner", fields: [scannedById], references: [id])
+  actualWeightKg  Decimal?  @map("actual_weight_kg") @db.Decimal(12, 2)
+  actualBags      Int?      @map("actual_bags")
+  weighedAt       DateTime? @map("weighed_at") @db.Timestamptz()
+
+  // Pricing
+  ratePerUnit     Decimal?  @map("rate_per_unit") @db.Decimal(10, 2)
+  totalAmount     Decimal?  @map("total_amount") @db.Decimal(12, 2)
+  advancePaid     Decimal?  @map("advance_paid") @db.Decimal(12, 2)
+
+  // Dispatch
+  dispatchRequestedAt DateTime? @map("dispatch_requested_at") @db.Timestamptz()
+  dispatchedAt        DateTime? @map("dispatched_at") @db.Timestamptz()
+  dispatchWeightKg    Decimal?  @map("dispatch_weight_kg") @db.Decimal(12, 2)
+  dispatchNote        String?   @map("dispatch_note") @db.Text
+
+  // Linked lot (created after weighing & storage confirmation)
+  lotId         String?       @unique @map("lot_id") @db.Uuid
+  lot           InventoryLot? @relation(fields: [lotId], references: [id])
+
+  // Notes
+  farmerNote    String?  @map("farmer_note") @db.Text
+  ownerNote     String?  @map("owner_note") @db.Text
+  cancelReason  String?  @map("cancel_reason") @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([farmerId])
+  @@index([facilityId])
+  @@index([status])
+  @@index([preferredDate])
+  @@index([bookingNumber])
+  @@map("bookings")
 }
 
 /// Cold storage facilities
@@ -342,6 +455,7 @@ model Facility {
   invoices     Invoice[]
   reviews      FacilityReview[]
   iotDevices   IoTDevice[]
+  bookings     Booking[]
 
   @@index([status])
   @@index([state])
@@ -382,6 +496,7 @@ model Chamber {
   lots                InventoryLot[]
   temperatureReadings TemperatureReading[]
   iotDevices          IoTDevice[]
+  bookings            Booking[]
 
   @@unique([facilityId, chamberNumber])
   @@index([facilityId])
@@ -509,6 +624,7 @@ model InventoryLot {
   invoices          Invoice[]
   listings          MarketListing[]
   warehouseReceipt  WarehouseReceipt?
+  booking           Booking?
 
   @@index([facilityId])
   @@index([chamberId])

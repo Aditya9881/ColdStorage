@@ -31,7 +31,17 @@ import marketPriceRoutes from './modules/market-prices/market-prices.routes';
 
 // Phase 3: KYC & Documents
 import kycRoutes from './modules/kyc/kyc.routes';
+
+// Phase 4: Booking Flow
+import bookingRoutes from './modules/bookings/booking.routes';
+
+// Phase A: Missing endpoints — IoT, Reviews, Warehouse Receipts, Escrow
+import iotDeviceRoutes from './modules/iot-devices/iot-devices.routes';
+import reviewRoutes from './modules/reviews/reviews.routes';
+import warehouseReceiptRoutes from './modules/warehouse-receipts/warehouse-receipts.routes';
+import escrowRoutes from './modules/escrow/escrow.routes';
 import path from 'path';
+import { setupSwagger } from './shared/swagger';
 
 const app = express();
 
@@ -90,6 +100,18 @@ app.use(`${api}/market-prices`, marketPriceRoutes);
 
 // Phase 3: KYC & Documents
 app.use(`${api}/kyc`, kycRoutes);
+
+// Phase 4: Booking Flow
+app.use(`${api}/bookings`, bookingRoutes);
+
+// Phase A: New modules
+app.use(`${api}/iot-devices`, iotDeviceRoutes);
+app.use(`${api}/reviews`, reviewRoutes);
+app.use(`${api}/warehouse-receipts`, warehouseReceiptRoutes);
+app.use(`${api}/escrow`, escrowRoutes);
+
+// ── API Documentation ─────────────────────────────
+setupSwagger(app);
 
 // ── 404 Handler ───────────────────────────────────
 app.use((_req, res) => {

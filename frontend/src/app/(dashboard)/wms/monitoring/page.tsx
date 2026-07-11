@@ -8,6 +8,7 @@ import {
 import { Header } from '@/components/layout/Header';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { LineChart } from '@/components/charts';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatRelativeTime, getCommodityLabel } from '@/lib/formatters';
 import styles from './monitoring.module.css';
@@ -175,6 +176,57 @@ export default function MonitoringPage() {
             </div>
           </div>
         </div>
+
+        {/* Temperature Trend Chart — Full Width */}
+        {data.length > 0 && (() => {
+          // Build chart data from the first chamber that has sparkline data
+          const chartsData = data.filter(d => d.sparkline.length >= 2).slice(0, 4);
+          if (chartsData.length === 0) return null;
+
+          // Use the first chamber's sparkline as the x-axis, merge up to 4 chambers
+          const primarySparkline = chartsData[0].sparkline;
+          const chartPoints = primarySparkline.map((pt, i) => {
+            const row: Record<string, any> = {
+              time: new Date(pt.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+            };
+            chartsData.forEach((ch, ci) => {
+              const sp = ch.sparkline[i];
+              row[`ch${ci}`] = sp ? sp.temp : null;
+            });
+            return row;
+          });
+
+          const series = chartsData.map((ch, ci) => ({
+            dataKey: `ch${ci}`,
+            name: `${ch.chamber.chamberNumber}`,
+            strokeWidth: ci === 0 ? 2.5 : 1.5,
+          }));
+
+          // Reference lines for the first chamber's target range
+          const refLines = [];
+          const ch0 = chartsData[0].chamber;
+          if (ch0.targetTempMax !== null) {
+            refLines.push({ y: Number(ch0.targetTempMax), label: `Max ${ch0.targetTempMax}°C`, color: '#f43f5e' });
+          }
+          if (ch0.targetTempMin !== null) {
+            refLines.push({ y: Number(ch0.targetTempMin), label: `Min ${ch0.targetTempMin}°C`, color: '#06b6d4', strokeDasharray: '6 3' });
+          }
+
+          return (
+            <LineChart
+              data={chartPoints}
+              xAxisKey="time"
+              series={series}
+              title="Temperature History"
+              subtitle={`Last ${primarySparkline.length} readings across ${chartsData.length} chamber${chartsData.length > 1 ? 's' : ''}`}
+              height={300}
+              showDots={primarySparkline.length <= 24}
+              referenceLines={refLines}
+              formatTooltip={(v: number) => `${v.toFixed(1)}°C`}
+              yAxisLabel="°C"
+            />
+          );
+        })()}
 
         {/* Chamber Grid */}
         {loading ? (

@@ -25,7 +25,7 @@ router.get('/facilities', asyncHandler(async (req, res) => {
     include: {
       chambers: {
         where: { status: 'OPERATIONAL' },
-        select: { id: true, chamberNumber: true, name: true, capacityMt: true, occupiedMt: true, commodityCategory: true },
+        select: { id: true, chamberNumber: true, name: true, capacityMt: true, occupiedMt: true, commodityCategory: true, targetTempMin: true, targetTempMax: true },
       },
       pricing: {
         where: { status: 'ACTIVE' },

@@ -1,0 +1,106 @@
+# ============================================
+# ColdStorage Ecosystem — Docker Compose
+# ============================================
+# Run: docker compose up -d
+# Stop: docker compose down
+# Reset DB: docker compose down -v && docker compose up -d
+
+services:
+  # ── PostgreSQL Database ──────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: coldstorage-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: coldstorage_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis Cache ─────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: coldstorage-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: coldstorage-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      API_PREFIX: /api/v1
+      DATABASE_URL: postgresql://postgres:postgres_dev_password@postgres:5432/coldstorage_dev?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: dev-access-secret-change-in-production
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-in-production
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 7d
+      BCRYPT_SALT_ROUNDS: 12
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+      CORS_ORIGIN: http://localhost:3000
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+
+  # ── Frontend (Next.js Dev Server) ───────────
+  # Uncomment for containerized frontend development
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: coldstorage-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+  #   depends_on:
+  #     - backend
+
+  # ── EMQX MQTT Broker (IoT) ─────────────────
+  # Uncomment when deploying IoT infrastructure
+  # emqx:
+  #   image: emqx/emqx:5.4
+  #   container_name: coldstorage-mqtt
+  #   restart: unless-stopped
+  #   ports:
+  #     - "1883:1883"    # MQTT
+  #     - "8083:8083"    # WebSocket
+  #     - "18083:18083"  # Dashboard
+  #   volumes:
+  #     - emqx_data:/opt/emqx/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:
+  # emqx_data:
