@@ -20,7 +20,12 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import 'dotenv/config';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const dbUrl = process.env.DATABASE_URL || '';
+const needsSsl = dbUrl.includes('render.com') || dbUrl.includes('sslmode=require');
+const pool = new Pool({
+  connectionString: dbUrl,
+  ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+});
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 

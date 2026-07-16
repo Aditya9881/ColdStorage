@@ -29,7 +29,7 @@ function baseCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'strict' : 'lax', // lax in dev for cross-origin localhost
+    sameSite: isProd ? 'none' : 'lax', // 'none' in prod for cross-origin (frontend ≠ backend domain)
     path: '/',
   };
 }
