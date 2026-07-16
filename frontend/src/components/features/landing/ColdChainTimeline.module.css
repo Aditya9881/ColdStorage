@@ -1,0 +1,154 @@
+/* ============================================
+   Cold Chain Timeline — Animated Journey
+   ============================================ */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+  padding: 32px 0;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Steps row */
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  max-width: 720px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.stepCircle {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2.5px solid #d1d5db;
+  background: #f9fafb;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: #9ca3af;
+}
+
+.stepActive .stepCircle {
+  transform: scale(1.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.stepLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #9ca3af;
+  transition: color 0.3s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Connector line */
+.connector {
+  flex: 1;
+  height: 3px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  min-width: 40px;
+  max-width: 80px;
+  overflow: hidden;
+  margin: 0 -4px;
+  margin-bottom: 28px;
+}
+
+.connectorFill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.connectorActive .connectorFill {
+  width: 100%;
+}
+
+/* Temperature */
+.tempSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.tempValue {
+  font-size: 3rem;
+  font-weight: 300;
+  color: #1e293b;
+  letter-spacing: -0.03em;
+  font-family: 'Georgia', serif;
+}
+
+.tempBadge {
+  display: inline-flex;
+  padding: 6px 18px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 20px;
+  color: #10b981;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 640px) {
+  .steps {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .connector {
+    width: 3px;
+    height: 24px;
+    min-width: unset;
+    max-width: unset;
+    margin: 0;
+    margin-left: 0;
+  }
+
+  .connectorFill {
+    width: 100% !important;
+    height: 0;
+    transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .connectorActive .connectorFill {
+    height: 100%;
+  }
+
+  .step {
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .stepCircle {
+    width: 52px;
+    height: 52px;
+  }
+}

@@ -4,9 +4,12 @@ import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env';
+import { prisma } from './config/database';
 import { requestLogger } from './shared/middleware/request-logger';
 import { apiRateLimiter } from './shared/middleware/rate-limiter';
 import { errorHandler } from './shared/middleware/error-handler';
+import { enforceHttps } from './shared/middleware/enforce-https';
+import { sanitizeInput } from './shared/middleware/sanitize';
 
 // Module routes
 import authRoutes from './modules/auth/auth.routes';
@@ -40,15 +43,23 @@ import iotDeviceRoutes from './modules/iot-devices/iot-devices.routes';
 import reviewRoutes from './modules/reviews/reviews.routes';
 import warehouseReceiptRoutes from './modules/warehouse-receipts/warehouse-receipts.routes';
 import escrowRoutes from './modules/escrow/escrow.routes';
+import fileDownloadRoutes from './shared/routes/file-download.routes';
 import path from 'path';
 import { setupSwagger } from './shared/swagger';
+import { isProd } from './config/env';
 
 const app = express();
 
 // ── Security ──────────────────────────────────────
-app.use(helmet());
+if (isProd) {
+  app.set('trust proxy', 1); // Trust first proxy (Nginx/ALB/Cloudflare)
+  app.use(enforceHttps);
+}
+app.use(helmet({
+  contentSecurityPolicy: isProd ? undefined : false, // CSP in prod, disabled in dev for hot reload
+}));
 app.use(cors({
-  origin: env.CORS_ORIGIN.split(',').map(o => o.trim()),
+  origin: true, // Allow all origins (web + mobile + any frontend)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -60,19 +71,42 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(compression());
 
+// ── Input Sanitization ────────────────────────────
+app.use(sanitizeInput);
+
 // ── Static file serving (uploaded documents) ──
-app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
+// KYC documents are now served through an authenticated route
+// at /api/v1/files/kyc/:filename (see file-download.routes.ts).
+// Public static serving is disabled to protect PII.
+// Legacy path kept ONLY for development convenience:
+if (!isProd) {
+  app.use('/uploads', express.static(path.resolve(__dirname, '../uploads'), {
+    setHeaders: (res) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
+  }));
+}
 
 // ── Logging & Rate Limiting ───────────────────────
 app.use(requestLogger);
 app.use(env.API_PREFIX, apiRateLimiter);
 
 // ── Health Check ──────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.status(200).json({
-    status: 'healthy',
+app.get('/health', async (_req, res) => {
+  let dbStatus = 'connected';
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    dbStatus = 'disconnected';
+  }
+
+  const isHealthy = dbStatus === 'connected';
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV,
+    uptime: Math.floor(process.uptime()),
+    dependencies: { database: dbStatus },
   });
 });
 
@@ -109,6 +143,9 @@ app.use(`${api}/iot-devices`, iotDeviceRoutes);
 app.use(`${api}/reviews`, reviewRoutes);
 app.use(`${api}/warehouse-receipts`, warehouseReceiptRoutes);
 app.use(`${api}/escrow`, escrowRoutes);
+
+// Protected file downloads
+app.use(`${api}/files`, fileDownloadRoutes);
 
 // ── API Documentation ─────────────────────────────
 setupSwagger(app);

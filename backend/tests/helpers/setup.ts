@@ -21,6 +21,11 @@ const CLEANUP_ORDER = [
   'escrowTransaction',
   'order',
   'marketListing',
+  // A booking can reference the lot created at intake, so it must be
+  // removed before the lot. Phone OTPs are intentionally retained by the
+  // application for verification history, but test isolation requires them
+  // to be cleared before their associated users.
+  'booking',
   'inventoryTransaction',
   'invoiceLineItem',
   'payment',
@@ -35,6 +40,7 @@ const CLEANUP_ORDER = [
   'chamber',
   'notification',
   'auditLog',
+  'phoneOTP',
   'userDocument',
   'userSession',
   'facility',
@@ -47,8 +53,14 @@ const CLEANUP_ORDER = [
  */
 export async function cleanDatabase(): Promise<void> {
   for (const model of CLEANUP_ORDER) {
-    // Use raw deleteMany — Prisma doesn't have a generic truncate
-    await (prisma as any)[model].deleteMany();
+    try {
+      await (prisma as any)[model].deleteMany();
+    } catch (error: any) {
+      throw new Error(
+        `Test database cleanup failed for Prisma model "${model}" ` +
+        `(code: ${error.code ?? 'unknown'}, meta: ${JSON.stringify(error.meta ?? {})}): ${error.message}`,
+      );
+    }
   }
 }
 
@@ -72,15 +84,16 @@ export interface TestUser {
 
 let phoneCounter = 0;
 let aadhaarCounter = 0;
+const testRunPrefix = Math.floor(Math.random() * 10_000).toString().padStart(4, '0');
 
 function nextPhone(): string {
   phoneCounter++;
-  return `80000${phoneCounter.toString().padStart(5, '0')}`;
+  return `8${testRunPrefix}${phoneCounter.toString().padStart(5, '0')}`;
 }
 
 function nextAadhaar(): string {
   aadhaarCounter++;
-  return `${aadhaarCounter.toString().padStart(12, '0')}`;
+  return `${testRunPrefix}${aadhaarCounter.toString().padStart(8, '0')}`;
 }
 
 /**
@@ -118,6 +131,19 @@ export async function createTestUser(
     .expect(201);
 
   const data = res.body.data;
+
+  // Owners are deliberately registered as pending KYC and do not receive
+  // tokens. Integration tests need an approved owner to exercise protected
+  // facility operations, so promote this test-only account and then use the
+  // normal login endpoint to obtain its session.
+  if (role === 'OWNER') {
+    await prisma.user.update({
+      where: { id: data.userId },
+      data: { status: 'ACTIVE' },
+    });
+    return loginTestUser(phone);
+  }
+
   return {
     id: data.user.id,
     phone,

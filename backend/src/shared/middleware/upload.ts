@@ -8,7 +8,7 @@
  */
 import multer from 'multer';
 import path from 'path';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 
 const UPLOAD_DIR = path.resolve(__dirname, '../../../uploads');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -27,7 +27,7 @@ const localStorage = multer.diskStorage({
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `${uuid()}${ext}`);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
@@ -63,6 +63,21 @@ export const uploadKycDocuments = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter,
 }).array('documents', 5);
+
+/**
+ * Owner registration documents submitted with the public registration form.
+ * These named fields are kept separate from the authenticated /kyc/upload
+ * endpoint because an owner has no session until the application is approved.
+ */
+export const uploadOwnerRegistrationDocuments = multer({
+  storage: localStorage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter,
+}).fields([
+  { name: 'aadhaarFront', maxCount: 1 },
+  { name: 'aadhaarBack', maxCount: 1 },
+  { name: 'panCard', maxCount: 1 },
+]);
 
 /**
  * Get the public URL for an uploaded file.

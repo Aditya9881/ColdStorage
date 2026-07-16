@@ -23,26 +23,27 @@
   padding: var(--space-4) var(--space-4);
   height: var(--header-height);
   border-bottom: 1px solid var(--color-border-primary);
+  padding-left: var(--space-5);
   flex-shrink: 0;
 }
 
 .logoIcon {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   color: white;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 2px 8px rgba(11, 29, 54, 0.3);
 }
 
 .logoText { display: flex; flex-direction: column; overflow: hidden; }
 
 .logoTitle {
-  font-size: var(--text-base);
+  font-size: .98rem;
   font-weight: var(--font-bold);
   color: var(--color-text-primary);
   letter-spacing: var(--tracking-tight);
@@ -61,7 +62,7 @@
 .nav {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-3) var(--space-2);
+  padding: var(--space-5) var(--space-3);
 }
 
 .group { margin-bottom: var(--space-2); }
@@ -72,7 +73,7 @@
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: var(--tracking-widest);
-  padding: var(--space-3) var(--space-3) var(--space-1-5);
+  padding: var(--space-4) var(--space-3) var(--space-2);
 }
 
 .groupItems { display: flex; flex-direction: column; gap: 2px; }
@@ -82,7 +83,7 @@
   align-items: center;
   gap: var(--space-2-5);
   padding: var(--space-1-5) var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   color: var(--color-text-tertiary);
   font-size: var(--text-sm);
   font-weight: var(--font-normal);
@@ -90,7 +91,7 @@
   cursor: pointer;
   position: relative;
   text-decoration: none;
-  height: 34px;
+  height: 40px;
 }
 
 .navItem:hover {
@@ -99,10 +100,12 @@
 }
 
 .navItem.active {
-  background: var(--color-primary-600);
+  background: linear-gradient(110deg, var(--color-primary-600), var(--color-primary-500));
   color: white;
   font-weight: var(--font-medium);
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+  outline: 2px solid var(--color-primary-300);
+  outline-offset: 1px;
+  box-shadow: 0 5px 12px rgba(11, 29, 54, 0.15), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
 .navItem.active::before { display: none; }

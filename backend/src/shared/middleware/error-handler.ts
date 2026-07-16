@@ -68,6 +68,24 @@ export function errorHandler(
       errors.notFound(res, 'Record not found');
       return;
     }
+    if (prismaErr.code === 'P2003') {
+      errors.badRequest(res, `Invalid reference: the related ${prismaErr.meta?.field_name || 'record'} does not exist`);
+      return;
+    }
+    if (prismaErr.code === 'P2000') {
+      errors.badRequest(res, `Value too long for field: ${prismaErr.meta?.column_name || 'unknown'}`);
+      return;
+    }
+    if (prismaErr.code === 'P2012') {
+      errors.badRequest(res, `Missing required field: ${prismaErr.meta?.column || 'unknown'}`);
+      return;
+    }
+  }
+
+  // Prisma validation errors (wrong data types, etc.)
+  if (err.name === 'PrismaClientValidationError') {
+    errors.badRequest(res, 'Invalid data provided');
+    return;
   }
 
   // Fallback

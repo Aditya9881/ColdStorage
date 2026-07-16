@@ -106,7 +106,7 @@ describe('POST /auth/register', () => {
         fullName: 'Bad User',
         // missing phone, password, role, address, aadhaar
       })
-      .expect(422);
+      .expect(400);
 
     expect(res.body.success).toBe(false);
   });
@@ -125,7 +125,7 @@ describe('POST /auth/register', () => {
         pincode: '282001',
         aadhaarNumber: '123',  // too short
       })
-      .expect(422);
+      .expect(400);
 
     expect(res.body.success).toBe(false);
   });
@@ -144,7 +144,7 @@ describe('POST /auth/register', () => {
         pincode: '282001',
         aadhaarNumber: '999988887777',
       })
-      .expect(422);
+      .expect(400);
 
     expect(res.body.success).toBe(false);
   });

@@ -4,6 +4,7 @@
 import { prisma } from '../../config/database';
 import type { UserDocType } from '@prisma/client';
 import { getFileUrl } from '../../shared/middleware/upload';
+import { sendOwnerApprovalNotification } from '../../shared/services/sms.service';
 
 // ── Types ──
 
@@ -78,7 +79,7 @@ class KycService {
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where: {
-          status: 'PENDING_VERIFICATION',
+          status: { in: ['PENDING_KYC', 'PENDING_VERIFICATION', 'KYC_SUBMITTED'] },
           kycSubmittedAt: { not: null },
         },
         select: {
@@ -116,7 +117,7 @@ class KycService {
       }),
       prisma.user.count({
         where: {
-          status: 'PENDING_VERIFICATION',
+          status: { in: ['PENDING_KYC', 'PENDING_VERIFICATION', 'KYC_SUBMITTED'] },
           kycSubmittedAt: { not: null },
         },
       }),
@@ -202,6 +203,53 @@ class KycService {
         },
       });
 
+      // Owner registrations create a pending facility during signup. Older
+      // registrations did not, so create one when necessary and activate it
+      // together with the approved owner account.
+      if (user.role === 'OWNER') {
+        const ownerFacility = await prisma.facility.findFirst({
+          where: { ownerId: user.id },
+          select: { id: true },
+        });
+
+        if (ownerFacility) {
+          await prisma.facility.updateMany({
+            where: { ownerId: user.id, status: 'PENDING_REVIEW' },
+            data: {
+              status: 'ACTIVE',
+              verifiedAt: new Date(),
+              verifiedBy: input.adminId,
+              verificationNotes: 'Activated with owner KYC approval',
+            },
+          });
+        } else {
+          const registrationInUse = user.csRegistrationNumber
+            ? await prisma.facility.findUnique({ where: { registrationNumber: user.csRegistrationNumber } })
+            : null;
+
+          await prisma.facility.create({
+            data: {
+              name: user.businessName || `${user.fullName} Cold Storage`,
+              registrationNumber: registrationInUse ? null : user.csRegistrationNumber || null,
+              addressLine1: user.addressLine1 || 'Address pending verification',
+              city: user.city || 'Not provided',
+              district: user.district || user.city || 'Not provided',
+              state: user.state || 'Not provided',
+              pincode: user.pincode || '000000',
+              totalCapacityMt: 0,
+              storageType: 'BAG',
+              status: 'ACTIVE',
+              ownerId: user.id,
+              contactPhone: user.phone,
+              contactEmail: user.email || null,
+              verifiedAt: new Date(),
+              verifiedBy: input.adminId,
+              verificationNotes: 'Created from approved owner KYC registration',
+            },
+          });
+        }
+      }
+
       // Send notification
       await prisma.notification.create({
         data: {
@@ -211,6 +259,10 @@ class KycService {
           message: 'Your identity verification has been approved. You can now use all features.',
         },
       });
+
+      if (user.role === 'OWNER') {
+        await sendOwnerApprovalNotification(user.phone, user.fullName);
+      }
     } else {
       // Reject all pending documents
       await prisma.userDocument.updateMany({

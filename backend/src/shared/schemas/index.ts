@@ -15,13 +15,13 @@ export const loginSchema = z.object({
 
 export const sendOtpSchema = z.object({
   phone: indianPhone,
-  purpose: z.enum(['LOGIN', 'REGISTER']).optional().default('LOGIN'),
+  purpose: z.enum(['LOGIN', 'REGISTER', 'RESET_PASSWORD']).optional().default('LOGIN'),
 });
 
 export const verifyOtpSchema = z.object({
   phone: indianPhone,
   otp: z.string().length(6, 'OTP must be exactly 6 digits').regex(/^[0-9]{6}$/, 'OTP must be numeric'),
-  purpose: z.enum(['LOGIN', 'REGISTER']).optional().default('LOGIN'),
+  purpose: z.enum(['LOGIN', 'REGISTER', 'RESET_PASSWORD']).optional().default('LOGIN'),
 });
 
 export const registerSchema = z.object({
@@ -55,10 +55,24 @@ export const registerSchema = z.object({
   // Owner-specific
   csRegistrationNumber: z.string().max(50).optional().nullable(), // Cold Storage registration number
   fssaiNumber: z.string().max(20).optional().nullable(),          // FSSAI license number
+  facilityCapacityMt: z.coerce.number().positive('Facility capacity must be positive').max(1_000_000).optional(),
+  facilityStorageType: z.enum(['BAG', 'BULK', 'HYBRID']).optional(),
 });
 
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+// ── Password Reset Schemas ──
+
+export const forgotPasswordSchema = z.object({
+  phone: indianPhone,
+});
+
+export const resetPasswordSchema = z.object({
+  phone: indianPhone,
+  otp: z.string().length(6, 'OTP must be exactly 6 digits').regex(/^[0-9]{6}$/, 'OTP must be numeric'),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters').max(128),
 });
 
 // ── Facility Schemas ──
@@ -338,4 +352,3 @@ export const updateBookingStatusSchema = z.object({
   dispatchWeightKg: z.number().positive().optional(),
   dispatchNote: z.string().max(500).optional(),
 });
-

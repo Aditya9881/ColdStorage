@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Package, Users, Coins, Clock, ClipboardList, TrendingUp, UserPlus } from 'lucide-react';
+import { Factory, Package, Users, Coins, Clock, ClipboardList, TrendingUp, UserPlus, ShieldCheck } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
                   <span className={styles.actionTitle}>Document Compliance</span>
                   <span className={styles.actionDesc}>Check facility document status</span>
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => router.push('/admin/compliance')}>View</Button>
+                <Button variant="secondary" size="sm" onClick={() => router.push('/admin/verification')}>View</Button>
               </div>
               <div className={styles.actionItem}>
                 <div className={styles.actionIcon} style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-primary-400)' }}><TrendingUp size={16} /></div>

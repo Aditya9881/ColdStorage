@@ -5,6 +5,9 @@ const config: Config = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['<rootDir>/tests/**/*.test.ts'],
+  // macOS can create AppleDouble `._*` sidecar files on external drives.
+  // They are binary metadata, not TypeScript tests.
+  testPathIgnorePatterns: ['/node_modules/', '/\\._[^/]+$'],
   moduleNameMapper: {
     '^@config/(.*)$': '<rootDir>/src/config/$1',
     '^@modules/(.*)$': '<rootDir>/src/modules/$1',

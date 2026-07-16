@@ -2,8 +2,9 @@
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-5);
   max-width: var(--content-max-width);
+  width: 100%;
 }
 
 .statsRow {
@@ -12,6 +13,7 @@
   gap: var(--space-4);
 }
 @media (max-width: 900px) { .statsRow { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .content { padding: var(--space-4); } }
 
 /* Grouped Facility Pricing Layout */
 .sectionHeader {

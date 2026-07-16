@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -8,27 +8,61 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
-import { Plus, Snowflake, BarChart3, Package, Sprout, Download, Receipt, FileDown, Clock } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
+import { Plus, Snowflake, BarChart3, Package, Sprout, Download, Receipt, FileDown, Clock, CalendarCheck, CheckCircle, XCircle, User } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { api, ApiError } from '@/lib/api-client';
 import { formatWeight, formatCurrency, formatDate, formatPercent, getCommodityLabel } from '@/lib/formatters';
 import type { InventoryLot, Chamber } from '@/types/models';
 import styles from './wms-dashboard.module.css';
 
+interface Booking {
+  id: string;
+  bookingNumber: string;
+  status: string;
+  commodityCategory: string;
+  commodityName: string;
+  estimatedWeightKg: number;
+  estimatedBags?: number;
+  preferredDate: string;
+  preferredSlot?: string;
+  createdAt: string;
+  farmer: { id: string; fullName: string; phone: string; uniqueId?: string };
+  facility: { id: string; name: string };
+}
+
 export default function WMSDashboard() {
   const router = useRouter();
+  const { showToast } = useToast();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const { data: lots, loading: lotsLoading } = useApiQuery<InventoryLot[]>('/inventory/lots');
   const { data: chambers, loading: chambersLoading } = useApiQuery<Chamber[]>('/chambers');
+  const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useApiQuery<{ bookings: Booking[] }>('/bookings/facility/mine?status=PENDING');
 
   const loading = lotsLoading || chambersLoading;
   const lotList = lots || [];
   const chamberList = chambers || [];
+  const pendingBookings = bookingsData?.bookings || [];
 
   const totalCapacity = chamberList.reduce((s, c) => s + Number(c.capacityMt || 0), 0);
   const totalOccupied = chamberList.reduce((s, c) => s + Number(c.occupiedMt || 0), 0);
   const utilization = totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : 0;
   const activeLots = lotList.filter((l) => l.status === 'STORED' || l.status === 'PARTIALLY_RELEASED').length;
   const totalStored = lotList.reduce((s, l) => s + Number(l.currentWeightKg || 0), 0);
+
+  const handleBookingAction = async (bookingId: string, status: 'CONFIRMED' | 'REJECTED') => {
+    setActionLoading(bookingId);
+    try {
+      await api.patch(`/bookings/${bookingId}/status`, { status });
+      showToast(`Booking ${status.toLowerCase()}`, 'success');
+      refetchBookings();
+    } catch (err: any) {
+      showToast(err.message || 'Action failed', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const lotColumns: Column<InventoryLot>[] = [
     {
@@ -88,8 +122,7 @@ export default function WMSDashboard() {
         actions={
           <div className={styles.headerActions}>
             <Button variant="secondary" size="sm" icon={<FileDown size={14} />} onClick={() => {
-              const token = localStorage.getItem('accessToken');
-              window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/reports/inventory/csv?token=${token}`, '_blank');
+              api.downloadBlob('/reports/inventory/csv', `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`);
             }}>
               Export
             </Button>
@@ -103,11 +136,68 @@ export default function WMSDashboard() {
       <main className={styles.content}>
         {/* KPI Row */}
         <div className={`${styles.statsGrid} stagger-in`}>
+          <StatsCard title="Pending Bookings" value={pendingBookings.length} subtitle="Awaiting confirmation" icon={<CalendarCheck size={20} />} variant={pendingBookings.length > 0 ? 'warning' : 'accent'} />
           <StatsCard title="Chambers" value={chamberList.length} subtitle={`${chamberList.filter(c => c.status === 'OPERATIONAL').length} operational`} icon={<Snowflake size={20} />} variant="primary" />
           <StatsCard title="Utilization" value={formatPercent(utilization)} subtitle={`${totalOccupied} / ${totalCapacity} MT`} icon={<BarChart3 size={20} />} variant={utilization > 80 ? 'danger' : 'accent'} />
           <StatsCard title="Active Lots" value={activeLots} subtitle={formatWeight(totalStored)} icon={<Package size={20} />} variant="info" />
-          <StatsCard title="Total Depositors" value={new Set(lotList.map(l => l.depositorId)).size} icon={<Sprout size={20} />} variant="warning" />
         </div>
+
+        {/* ─── Pending Bookings ─── */}
+        {pendingBookings.length > 0 && (
+          <Card padding="md">
+            <CardHeader
+              title="Pending Bookings"
+              subtitle="Farmer booking requests awaiting your confirmation"
+              action={
+                <Button variant="secondary" size="sm" onClick={() => router.push('/wms/bookings')}>
+                  View All
+                </Button>
+              }
+            />
+            <div className={styles.bookingsList}>
+              {pendingBookings.slice(0, 5).map((b) => (
+                <div key={b.id} className={styles.bookingItem}>
+                  <div className={styles.bookingInfo}>
+                    <div className={styles.bookingFarmer}>
+                      <User size={14} />
+                      <strong>{b.farmer.fullName}</strong>
+                      <span className={styles.bookingPhone}>{b.farmer.phone}</span>
+                    </div>
+                    <div className={styles.bookingMeta}>
+                      <Badge variant="primary" size="sm">{getCommodityLabel(b.commodityCategory)}</Badge>
+                      <span>{b.commodityName} · ~{(b.estimatedWeightKg / 1000).toFixed(1)} MT</span>
+                      {b.estimatedBags && <span>· {b.estimatedBags} bags</span>}
+                      <span>· {formatDate(b.preferredDate)}</span>
+                    </div>
+                    <div className={styles.bookingNumber}>
+                      <Clock size={12} /> {b.bookingNumber} · Booked {formatDate(b.createdAt)}
+                    </div>
+                  </div>
+                  <div className={styles.bookingActions}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<CheckCircle size={14} />}
+                      onClick={() => handleBookingAction(b.id, 'CONFIRMED')}
+                      loading={actionLoading === b.id}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      icon={<XCircle size={14} />}
+                      onClick={() => handleBookingAction(b.id, 'REJECTED')}
+                      disabled={actionLoading === b.id}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Chamber Visualization + Quick Actions */}
         <div className={styles.twoCol}>

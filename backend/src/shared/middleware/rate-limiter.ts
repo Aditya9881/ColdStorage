@@ -3,6 +3,7 @@ import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 
 const isDev = env.NODE_ENV === 'development';
+const isTest = env.NODE_ENV === 'test';
 
 /**
  * Create a Redis-backed rate limit store if Redis is available,
@@ -54,7 +55,9 @@ export const apiRateLimiter = rateLimit({
     },
   },
   // Skip rate limiting entirely for localhost in dev if wanted:
-  skip: isDev ? (_req) => false : undefined,
+  // Test suites make many independent requests through the same in-memory
+  // process. Keeping limits enabled there makes test order affect outcomes.
+  skip: isTest ? () => true : undefined,
 });
 
 /**
@@ -76,6 +79,7 @@ export const authRateLimiter = rateLimit({
       message: 'Too many authentication attempts, please try again later',
     },
   },
+  skip: isTest ? () => true : undefined,
 });
 
 /**

@@ -5,26 +5,24 @@ import { api } from '@/lib/api-client';
 import type { User } from '@/types/models';
 
 // ──────────────────────────────────────────────
-// Auth Store — Zustand
+// Auth Store — Zustand (Cookie-based)
 // ──────────────────────────────────────────────
-// Replaces the React Context-based AuthProvider with a global store.
-// Benefits:
-//   - No Provider nesting required
-//   - Accessible anywhere: `const user = useAuthStore(s => s.user)`
-//   - Persist across re-renders without prop-drilling
+// Tokens are now in httpOnly cookies (set by the backend).
+// Auth state is determined by calling /users/me — if the cookie
+// is valid, we get user data back; if not, we're logged out.
 
 interface AuthState {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
 
-  /** Hydrate user from stored token on app mount */
+  /** Hydrate user from cookie-based session on app mount */
   hydrate: () => Promise<void>;
 
   /** Login with phone + password */
   login: (phone: string, password: string) => Promise<User>;
 
-  /** Logout and clear tokens */
+  /** Logout and clear cookies */
   logout: () => Promise<void>;
 
   /** Refresh user profile from API */
@@ -38,21 +36,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      if (!token) {
-        set({ loading: false });
-        return;
-      }
+      // Try to fetch profile — if cookie is valid, we get user data
       const res = await api.get<{ success: boolean; data: User }>('/users/me');
       if (res.success && res.data) {
         set({ user: res.data, isAuthenticated: true });
       }
     } catch {
-      // Token expired or invalid
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      }
+      // No valid session — user is not authenticated
     } finally {
       set({ loading: false });
     }
@@ -61,8 +51,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (phone: string, password: string) => {
     const res = await api.login(phone, password);
     if (res.success && res.data) {
-      localStorage.setItem('accessToken', res.data.accessToken);
-      localStorage.setItem('refreshToken', res.data.refreshToken);
+      // Tokens are set as httpOnly cookies by the backend
+      // We just need to store the user in state
       set({ user: res.data.user, isAuthenticated: true });
       return res.data.user;
     }

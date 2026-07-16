@@ -1,21 +1,34 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import { env } from '../../config/env';
 import { AuthenticatedRequest, JwtPayload, UserRole } from '../../shared/types';
 import { errors } from '../../shared/utils/api-response';
+import { ACCESS_TOKEN_COOKIE } from './auth.cookies';
 
 /**
- * Verify JWT access token and attach user payload to request
+ * Verify JWT access token and attach user payload to request.
+ *
+ * Token source priority:
+ * 1. httpOnly cookie (web clients)
+ * 2. Authorization: Bearer header (mobile app backward compat)
  */
 export function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
+  // Try cookie first
+  let token = req.cookies?.[ACCESS_TOKEN_COOKIE];
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Fallback to Authorization header (for mobile)
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+  }
+
+  if (!token) {
     errors.unauthorized(res, 'Access token is required');
     return;
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
@@ -56,10 +69,12 @@ export function authorize(...allowedRoles: UserRole[]) {
 export function generateTokens(payload: JwtPayload): { accessToken: string; refreshToken: string } {
   const accessToken = jwt.sign(payload, env.JWT_ACCESS_SECRET, {
     expiresIn: env.JWT_ACCESS_EXPIRY as any,
+    jwtid: randomUUID(),
   });
 
   const refreshToken = jwt.sign(payload, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRY as any,
+    jwtid: randomUUID(),
   });
 
   return { accessToken, refreshToken };

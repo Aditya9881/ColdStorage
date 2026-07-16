@@ -84,12 +84,12 @@ describe('GET /kyc/my-documents', () => {
     await prisma.userDocument.create({
       data: {
         userId: farmer.id,
-        documentType: 'AADHAAR',
+        documentType: 'AADHAAR_FRONT',
         documentNumber: '123456789012',
-        filename: 'aadhaar-front.jpg',
+        fileUrl: '/uploads/aadhaar-front.jpg',
         mimeType: 'image/jpeg',
         fileSizeBytes: 150000,
-        status: 'PENDING',
+        status: 'PENDING_REVIEW',
       },
     });
 
@@ -111,7 +111,7 @@ describe('GET /kyc/pending', () => {
     // Mark farmer's KYC as pending
     await prisma.user.update({
       where: { id: farmer.id },
-      data: { kycStatus: 'PENDING' },
+      data: { status: 'PENDING_KYC' },
     });
 
     const res = await request(app)
@@ -141,11 +141,11 @@ describe('GET /kyc/review/:userId', () => {
     await prisma.userDocument.create({
       data: {
         userId: farmer.id,
-        documentType: 'AADHAAR',
-        filename: 'aadhaar.jpg',
+        documentType: 'AADHAAR_FRONT',
+        fileUrl: '/uploads/aadhaar.jpg',
         mimeType: 'image/jpeg',
         fileSizeBytes: 100000,
-        status: 'PENDING',
+        status: 'PENDING_REVIEW',
       },
     });
 
@@ -174,7 +174,7 @@ describe('POST /kyc/review/:userId', () => {
   it('should allow admin to approve KYC', async () => {
     await prisma.user.update({
       where: { id: farmer.id },
-      data: { kycStatus: 'PENDING' },
+      data: { status: 'PENDING_KYC' },
     });
 
     const res = await request(app)
@@ -189,7 +189,7 @@ describe('POST /kyc/review/:userId', () => {
   it('should allow admin to reject KYC with reason', async () => {
     await prisma.user.update({
       where: { id: farmer.id },
-      data: { kycStatus: 'PENDING' },
+      data: { status: 'PENDING_KYC' },
     });
 
     const res = await request(app)
@@ -235,8 +235,8 @@ describe('DELETE /kyc/clear-rejected', () => {
     await prisma.userDocument.create({
       data: {
         userId: farmer.id,
-        documentType: 'AADHAAR',
-        filename: 'rejected-aadhaar.jpg',
+        documentType: 'AADHAAR_FRONT',
+        fileUrl: '/uploads/rejected-aadhaar.jpg',
         mimeType: 'image/jpeg',
         fileSizeBytes: 50000,
         status: 'REJECTED',

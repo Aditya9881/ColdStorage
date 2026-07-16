@@ -1,5 +1,7 @@
 import { Router, Request } from 'express';
 import { asyncHandler } from '../../shared/middleware/error-handler';
+import { authenticate, authorize } from '../auth/auth.middleware';
+import { AuthenticatedRequest, UserRole } from '../../shared/types';
 import {
   getMandiPrices,
   getMandiTrend,
@@ -85,7 +87,7 @@ router.get('/trends', asyncHandler(async (req: Request, res) => {
  *
  * Admin-only: Clear the mandi price cache to force a fresh fetch.
  */
-router.post('/cache/clear', asyncHandler(async (_req: Request, res) => {
+router.post('/cache/clear', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (_req: AuthenticatedRequest, res) => {
   clearMandiCache();
   res.json({ success: true, message: 'Mandi price cache cleared' });
 }));

@@ -41,6 +41,22 @@ async function startServer(): Promise<void> {
 
     // Alert engine: runs in all environments to catch temp/capacity/expiry alerts.
     startAlertEngine();
+
+    // Session cleanup: prune expired refresh token sessions every hour
+    const SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
+    setInterval(async () => {
+      try {
+        const { prisma } = await import('./config/database');
+        const { count } = await prisma.userSession.deleteMany({
+          where: { expiresAt: { lt: new Date() } },
+        });
+        if (count > 0) {
+          logger.info(`[SessionCleanup] Pruned ${count} expired sessions`);
+        }
+      } catch (err) {
+        logger.error('[SessionCleanup] Failed to prune sessions', { error: String(err) });
+      }
+    }, SESSION_CLEANUP_INTERVAL);
   });
 
   // Graceful shutdown
@@ -70,6 +86,15 @@ async function startServer(): Promise<void> {
   // Unhandled rejections
   process.on('unhandledRejection', (reason: unknown) => {
     logger.error('Unhandled Rejection', { reason: String(reason) });
+  });
+
+  // Uncaught exceptions — log and initiate graceful shutdown
+  process.on('uncaughtException', (error: Error) => {
+    logger.error('Uncaught Exception — initiating shutdown', {
+      message: error.message,
+      stack: error.stack,
+    });
+    shutdown('uncaughtException');
   });
 }
 

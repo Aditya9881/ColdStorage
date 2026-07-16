@@ -207,8 +207,7 @@ export default function LotDetailPage() {
                     size="sm"
                     icon={<Download size={14} />}
                     onClick={() => {
-                      const token = localStorage.getItem('accessToken');
-                      window.open(`${API_BASE}/inventory/lots/${lot.id}/receipt?token=${token}`, '_blank');
+                      api.downloadBlob(`/inventory/lots/${lot.id}/receipt`, `receipt-${lot.lotNumber}.pdf`);
                     }}
                   >
                     Receipt

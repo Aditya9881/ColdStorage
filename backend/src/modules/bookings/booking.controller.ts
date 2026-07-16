@@ -38,7 +38,12 @@ export const bookingController = {
    * GET /bookings/:id — Get booking detail
    */
   getById: asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const booking = await bookingService.getBookingById(req.params.id as string, req.user!.userId);
+    const booking = await bookingService.getBookingById(
+      req.params.id as string,
+      req.user!.userId,
+      req.user!.role,
+      req.user!.facilityId,
+    );
     sendSuccess(res, booking);
   }),
 
@@ -46,7 +51,12 @@ export const bookingController = {
    * GET /bookings/number/:bookingNumber — Get by booking number
    */
   getByNumber: asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const booking = await bookingService.getBookingByNumber(req.params.bookingNumber as string);
+    const booking = await bookingService.getBookingByNumber(
+      req.params.bookingNumber as string,
+      req.user!.userId,
+      req.user!.role,
+      req.user!.facilityId,
+    );
     sendSuccess(res, booking);
   }),
 
@@ -77,6 +87,9 @@ export const bookingController = {
     const limit = req.query.limit as string | undefined;
     const result = await bookingService.listFacilityBookings(
       req.params.facilityId as string,
+      req.user!.userId,
+      req.user!.role,
+      req.user!.facilityId,
       status as BookingStatus | undefined,
       date,
       Number(page) || 1,
@@ -118,7 +131,12 @@ export const bookingController = {
     const { qrPayload } = req.body;
     const scannerId = req.user!.userId;
 
-    const result = await bookingService.verifyQRScan(qrPayload, scannerId);
+    const result = await bookingService.verifyQRScan(
+      qrPayload,
+      scannerId,
+      req.user!.role,
+      req.user!.facilityId,
+    );
     sendSuccess(res, result);
   }),
 };

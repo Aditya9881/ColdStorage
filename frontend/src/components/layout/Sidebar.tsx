@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BarChart3, Factory, Users, Coins,
   ClipboardCheck, Boxes, Package, PackagePlus,
   Receipt, FilePlus, Sprout, Building, Snowflake,
-  PanelLeftClose, PanelLeftOpen, Settings, FileText, ShieldCheck,
+  PanelLeftClose, PanelLeftOpen, Settings, FileText, ShieldCheck, CalendarCheck,
 } from 'lucide-react';
 import { useSidebar } from '@/hooks/useSidebar';
 import styles from './Sidebar.module.css';
@@ -38,8 +38,7 @@ const adminNav: NavGroup[] = [
       { label: 'Facilities', href: '/admin/facilities', icon: <Factory size={18} /> },
       { label: 'Users', href: '/admin/users', icon: <Users size={18} /> },
       { label: 'Pricing', href: '/admin/pricing', icon: <Coins size={18} /> },
-      { label: 'KYC Verification', href: '/admin/kyc', icon: <ShieldCheck size={18} /> },
-      { label: 'Compliance', href: '/admin/compliance', icon: <ClipboardCheck size={18} /> },
+      { label: 'Verification', href: '/admin/verification', icon: <ShieldCheck size={18} /> },
       { label: 'Audit Trail', href: '/admin/audit', icon: <FileText size={18} /> },
     ],
   },
@@ -57,8 +56,8 @@ const wmsNav: NavGroup[] = [
     items: [
       { label: 'Facility', href: '/wms/facility', icon: <Building size={18} /> },
       { label: 'Chambers', href: '/wms/facility/chambers', icon: <Boxes size={18} /> },
+      { label: 'Bookings', href: '/wms/bookings', icon: <CalendarCheck size={18} /> },
       { label: 'Inventory', href: '/wms/inventory', icon: <Package size={18} /> },
-      { label: 'New Intake', href: '/wms/inventory/intake', icon: <PackagePlus size={18} /> },
       { label: 'Monitoring', href: '/wms/monitoring', icon: <Snowflake size={18} /> },
     ],
   },
@@ -66,7 +65,6 @@ const wmsNav: NavGroup[] = [
     title: 'Finance',
     items: [
       { label: 'Invoices', href: '/wms/invoices', icon: <Receipt size={18} /> },
-      { label: 'Create Invoice', href: '/wms/invoices/create', icon: <FilePlus size={18} /> },
       { label: 'Pricing', href: '/wms/pricing', icon: <Coins size={18} /> },
       { label: 'Depositors', href: '/wms/depositors', icon: <Sprout size={18} /> },
     ],

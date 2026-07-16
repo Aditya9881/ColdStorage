@@ -69,7 +69,7 @@ export const env: EnvConfig = {
   RATE_LIMIT_WINDOW_MS: getEnvVarAsNumber('RATE_LIMIT_WINDOW_MS', 900000),
   RATE_LIMIT_MAX_REQUESTS: getEnvVarAsNumber('RATE_LIMIT_MAX_REQUESTS', 100),
 
-  CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000'),
+  CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001,https://coldstorage-api.onrender.com'),
 
   LOG_LEVEL: getEnvVar('LOG_LEVEL', 'debug'),
 };
@@ -77,3 +77,19 @@ export const env: EnvConfig = {
 export const isDev = env.NODE_ENV === 'development';
 export const isProd = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
+
+// ── Production secret validation ──────────────────
+if (isProd) {
+  const weak = (s: string) =>
+    s.length < 32 ||
+    /dev|test|change|example|secret/i.test(s) ||
+    s === 'dev-access-secret-key-coldstorage-2024' ||
+    s === 'dev-refresh-secret-key-coldstorage-2024';
+
+  if (weak(env.JWT_ACCESS_SECRET) || weak(env.JWT_REFRESH_SECRET)) {
+    throw new Error(
+      '🚨 FATAL: JWT secrets are too weak for production. ' +
+      'Generate with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+    );
+  }
+}

@@ -36,6 +36,7 @@
 .sm { width: 100%; max-width: 440px; }
 .md { width: 100%; max-width: 560px; }
 .lg { width: 100%; max-width: 720px; }
+.xl { width: min(100%, 980px); }
 
 .header {
   display: flex;

@@ -9,7 +9,7 @@ interface ModalProps {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   footer?: React.ReactNode;
 }
 

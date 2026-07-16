@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // macOS AppleDouble metadata files are not source code. They can appear
+    // beside source files when the repository is used from an external drive.
+    "**/._*",
   ]),
 ]);
 

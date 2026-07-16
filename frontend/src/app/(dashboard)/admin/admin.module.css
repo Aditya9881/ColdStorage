@@ -19,6 +19,7 @@
 }
 
 @media (max-width: 640px) {
+  .content { padding: var(--space-4); }
   .statsGrid { grid-template-columns: 1fr; }
 }
 
@@ -26,7 +27,7 @@
 .twoColumns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 @media (max-width: 900px) {
@@ -37,7 +38,7 @@
 .capacityList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
 .capacityItem {
@@ -45,6 +46,8 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+
+.capacityItem { padding: .75rem; border: 1px solid var(--color-border-secondary); border-radius: 12px; background: color-mix(in srgb, var(--color-bg-secondary) 55%, transparent); }
 
 .capacityInfo {
   display: flex;
@@ -72,7 +75,7 @@
 
 .barTrack {
   flex: 1;
-  height: 6px;
+  height: 8px;
   background: var(--color-bg-tertiary);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -103,6 +106,9 @@
   margin-top: var(--space-5);
   padding-top: var(--space-5);
   border-top: 1px solid var(--color-border-secondary);
+  border-radius: 12px;
+  background: var(--color-bg-secondary);
+  padding: var(--space-4);
 }
 
 .nationalItem {
@@ -141,7 +147,7 @@
   padding: var(--space-3) var(--space-4);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   transition: all var(--transition-fast);
 }
 

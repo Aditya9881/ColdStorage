@@ -349,6 +349,6 @@ describe('GET /orders', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.orders.length).toBeGreaterThanOrEqual(1);
   });
 });

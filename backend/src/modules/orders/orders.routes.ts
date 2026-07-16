@@ -63,7 +63,7 @@ router.post('/', authorize(UserRole.BUYER), validate({ body: createOrderSchema }
       data: {
         userId: listing.lot.depositorId, type: 'SYSTEM',
         title: 'New Purchase Order',
-        message: `${newOrder.buyer.fullName} wants to buy ${qty} kg at ₹${Number(listing.askingPricePerKg)}/kg. Review and approve.`,
+        message: `${newOrder.buyer.fullName} wants to buy ${qty} kg at ₹${Number(listing.askingPricePerKg)}/kg. Approval code: ${rawOtp}`,
         actionUrl: `/orders/${newOrder.id}`,
         metadata: { orderId: newOrder.id },
       },
@@ -72,8 +72,10 @@ router.post('/', authorize(UserRole.BUYER), validate({ body: createOrderSchema }
   });
 
   const { otpCode: _, ...orderData } = order as any;
-  // Return the raw OTP to the seller via notification only (not in API response)
-  res.status(201).json({ success: true, data: { ...orderData, _otpForSeller: rawOtp } });
+  // Do not expose approval credentials to the buyer. Delivery is currently
+  // represented by the seller notification; a dedicated SMS/push channel is
+  // wired in a later integration step.
+  res.status(201).json({ success: true, data: orderData });
 }));
 
 // ── GET /orders — List orders (role-filtered) ──
@@ -200,8 +202,140 @@ router.post('/:id/regenerate-otp', authorize(UserRole.FARMER), asyncHandler(asyn
   if (order.status !== 'PENDING_APPROVAL') { res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Only for pending orders' } }); return; }
 
   const newOtp = generateOTP();
-  const updated = await prisma.order.update({ where: { id: paramString(req.params.id) }, data: { otpCode: newOtp, otpExpiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
-  res.json({ success: true, data: { otpCode: newOtp, expiresAt: updated.otpExpiresAt } });
+  const updated = await prisma.order.update({
+    where: { id: paramString(req.params.id) },
+    data: { otpCode: await hashOTP(newOtp), otpExpiresAt: new Date(Date.now() + 30 * 60 * 1000) },
+  });
+  await prisma.notification.create({
+    data: {
+      userId: order.listing.sellerId,
+      type: 'SYSTEM',
+      title: 'New Approval Code',
+      message: `Approval code for order ${order.id}: ${newOtp}`,
+      actionUrl: `/orders/${order.id}`,
+      metadata: { orderId: order.id },
+    },
+  });
+  // The API does not return raw OTPs to an arbitrary caller. The seller can
+  // retrieve the code through their own notification feed until SMS/push OTP
+  // delivery is enabled.
+  res.json({ success: true, data: { expiresAt: updated.otpExpiresAt } });
+}));
+
+// ── POST /orders/:id/dispatch — Seller dispatches a paid order ──
+router.post('/:id/dispatch', authorize(UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const orderId = paramString(req.params.id);
+  const sellerId = req.user!.userId;
+
+  const order: any = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      escrow: true,
+      listing: {
+        include: {
+          lot: { select: { id: true, currentWeightKg: true, status: true, chamberId: true } },
+        },
+      },
+    },
+  });
+
+  if (!order || order.listing.sellerId !== sellerId) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
+    return;
+  }
+  if (order.status !== 'APPROVED') {
+    res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Only approved orders can be dispatched' } });
+    return;
+  }
+  if (!order.escrow || order.escrow.status !== 'HELD') {
+    res.status(400).json({ success: false, error: { code: 'PAYMENT_REQUIRED', message: 'Confirmed escrow payment is required before dispatch' } });
+    return;
+  }
+
+  const dispatchWeightKg = Number(order.quantityKg);
+  const currentWeightKg = Number(order.listing.lot.currentWeightKg);
+  if (dispatchWeightKg > currentWeightKg) {
+    res.status(409).json({ success: false, error: { code: 'INSUFFICIENT_STOCK', message: 'The listed lot no longer has sufficient stock' } });
+    return;
+  }
+  if (!['STORED', 'PARTIALLY_RELEASED'].includes(order.listing.lot.status)) {
+    res.status(400).json({ success: false, error: { code: 'LOT_UNAVAILABLE', message: 'The listed lot is not available for dispatch' } });
+    return;
+  }
+
+  const isFullRelease = dispatchWeightKg >= currentWeightKg;
+  const result = await prisma.$transaction(async (tx: any) => {
+    await tx.inventoryTransaction.create({
+      data: {
+        lotId: order.listing.lot.id,
+        transactionType: isFullRelease ? 'FULL_RELEASE' : 'PARTIAL_RELEASE',
+        weightKg: dispatchWeightKg,
+        notes: `Marketplace order dispatch: ${order.id}`,
+        authorizedById: sellerId,
+        depositorApproved: true,
+        performedById: sellerId,
+      },
+    });
+
+    await tx.inventoryLot.update({
+      where: { id: order.listing.lot.id },
+      data: {
+        currentWeightKg: { decrement: dispatchWeightKg },
+        status: isFullRelease ? 'FULLY_RELEASED' : 'PARTIALLY_RELEASED',
+        ...(isFullRelease ? { actualReleaseDate: new Date() } : {}),
+      },
+    });
+
+    await tx.chamber.update({
+      where: { id: order.listing.lot.chamberId },
+      data: { occupiedMt: { decrement: dispatchWeightKg / 1000 } },
+    });
+
+    await tx.marketListing.update({
+      where: { id: order.listingId },
+      data: { status: isFullRelease ? 'SOLD' : 'ACTIVE' },
+    });
+
+    const dispatched = await tx.order.update({
+      where: { id: orderId },
+      data: { status: 'DISPATCHED' },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: order.buyerId,
+        type: 'SYSTEM',
+        title: 'Order Dispatched',
+        message: 'Your paid order has been dispatched by the seller.',
+        actionUrl: `/orders/${orderId}`,
+        metadata: { orderId },
+      },
+    });
+    return dispatched;
+  });
+
+  res.json({ success: true, data: result });
+}));
+
+// ── POST /orders/:id/complete — Buyer confirms delivery ──
+router.post('/:id/complete', authorize(UserRole.BUYER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const orderId = paramString(req.params.id);
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+
+  if (!order || order.buyerId !== req.user!.userId) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
+    return;
+  }
+  if (order.status !== 'DISPATCHED') {
+    res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Only dispatched orders can be completed' } });
+    return;
+  }
+
+  const completed = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'COMPLETED' },
+  });
+  res.json({ success: true, data: completed });
 }));
 
 export default router;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, Clock, CheckCircle, XCircle, FileText, Phone, MapPin, User as UserIcon, Eye } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, FileText, Phone, MapPin, Eye, Building2, Mail, CalendarDays, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -75,6 +75,7 @@ export default function AdminKycPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [failedDocumentIds, setFailedDocumentIds] = useState<string[]>([]);
 
   // Fetch pending KYC users
   const { data: pendingData, loading, refetch } = useApiQuery<PendingResponse>('/kyc/pending');
@@ -86,6 +87,7 @@ export default function AdminKycPage() {
     setShowReviewModal(true);
     setShowRejectInput(false);
     setRejectionReason('');
+    setFailedDocumentIds([]);
   };
 
   const handleApprove = async () => {
@@ -128,9 +130,12 @@ export default function AdminKycPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const getApiBaseUrl = () => {
-    // In dev, documents are served from backend static
-    return process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:4000';
+  const getDocumentUrl = (fileUrl: string) => {
+    if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    const backendOrigin = apiUrl.replace(/\/api\/v1\/?$/, '');
+    return `${backendOrigin}${fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`}`;
   };
 
   return (
@@ -141,13 +146,17 @@ export default function AdminKycPage() {
       />
 
       <div className={styles.kycPage}>
-        {/* Stats */}
         <div className={styles.statsRow}>
           <StatsCard title="Pending Review" value={total} icon={<Clock size={20} />} variant="warning" />
+          <StatsCard title="Documents to verify" value={users.reduce((count, user) => count + user.kycDocuments.length, 0)} icon={<FileText size={20} />} variant="primary" />
         </div>
 
         {/* Queue */}
         <Card>
+          <div className={styles.queueHeader}>
+            <div><span className={styles.eyebrow}>Verification queue</span><h3>Applications requiring a decision</h3></div>
+            <span className={styles.queueCount}>{total} open {total === 1 ? 'application' : 'applications'}</span>
+          </div>
           {loading ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
               Loading pending verifications...
@@ -172,19 +181,26 @@ export default function AdminKycPage() {
                       <h4>{user.fullName}</h4>
                       <div className={styles.userMeta}>
                         <span><Phone size={13} /> {user.phone}</span>
+                        {user.email && <span><Mail size={13} /> {user.email}</span>}
                         <span><MapPin size={13} /> {user.city || 'N/A'}, {user.state || 'N/A'}</span>
-                        <Badge variant={user.role === 'FARMER' ? 'primary' : 'info'}>{user.role}</Badge>
+                        <Badge variant={user.role === 'FARMER' ? 'primary' : 'info'}>{user.role === 'OWNER' ? 'COLD STORAGE OWNER' : user.role}</Badge>
                       </div>
                     </div>
                   </div>
                   <div className={styles.userActions}>
-                    <span className={styles.docCount}>
-                      <FileText size={13} /> {user.kycDocuments?.length || 0} docs
-                    </span>
+                    <button
+                      type="button"
+                      className={styles.documentAction}
+                      onClick={(e) => { e.stopPropagation(); handleOpenReview(user); }}
+                      aria-label={`Review ${user.kycDocuments?.length || 0} uploaded documents`}
+                    >
+                      <FileText size={15} />
+                      <span>{user.kycDocuments?.length || 0} documents</span>
+                    </button>
                     <span className={styles.submittedAt}>
-                      Submitted {user.kycSubmittedAt ? formatDate(user.kycSubmittedAt) : '—'}
+                      <CalendarDays size={13} /> Submitted {user.kycSubmittedAt ? formatDate(user.kycSubmittedAt) : '—'}
                     </span>
-                    <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenReview(user); }}>
+                    <Button className={styles.reviewButton} variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenReview(user); }}>
                       <Eye size={14} /> Review
                     </Button>
                   </div>
@@ -200,12 +216,38 @@ export default function AdminKycPage() {
         isOpen={showReviewModal}
         onClose={() => setShowReviewModal(false)}
         title={`KYC Review — ${selectedUser?.fullName || ''}`}
-        size="lg"
+        size="xl"
+        footer={selectedUser && (
+          <div className={styles.modalFooterActions}>
+            {showRejectInput ? (
+              <>
+                <Button variant="secondary" onClick={() => setShowRejectInput(false)} disabled={submitting}>
+                  Back to review
+                </Button>
+                <Button variant="danger" onClick={handleReject} disabled={submitting || !rejectionReason.trim()}>
+                  <XCircle size={16} /> Confirm rejection
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => setShowReviewModal(false)} disabled={submitting}>
+                  Cancel
+                </Button>
+                <Button variant="danger" onClick={() => setShowRejectInput(true)} disabled={submitting}>
+                  <XCircle size={16} /> Reject
+                </Button>
+                <Button variant="primary" onClick={handleApprove} loading={submitting}>
+                  <CheckCircle size={16} /> Approve KYC
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       >
         {selectedUser && (
           <div className={styles.reviewModal}>
             {/* User Profile */}
-            <div className={styles.profileSection}>
+            <section className={styles.profileSection}>
               <div className={styles.profileField}>
                 <label>Full Name</label>
                 <span>{selectedUser.fullName}</span>
@@ -242,7 +284,7 @@ export default function AdminKycPage() {
               )}
               {selectedUser.businessName && (
                 <div className={styles.profileField}>
-                  <label>Business</label>
+                  <label><Building2 size={13} /> Business</label>
                   <span>{selectedUser.businessName} ({selectedUser.businessType})</span>
                 </div>
               )}
@@ -262,36 +304,59 @@ export default function AdminKycPage() {
                 <label>Location</label>
                 <span>{[selectedUser.city, selectedUser.district, selectedUser.state].filter(Boolean).join(', ') || 'N/A'}</span>
               </div>
-            </div>
+            </section>
 
             {/* Documents */}
-            <div className={styles.documentsSection}>
-              <h3>Uploaded Documents ({selectedUser.kycDocuments?.length || 0})</h3>
+            <section className={styles.documentsSection}>
+              <div className={styles.documentsHeader}>
+                <div>
+                  <span className={styles.sectionEyebrow}>Identity documents</span>
+                  <h3>Uploaded documents</h3>
+                </div>
+                <span className={styles.documentsCount}>{selectedUser.kycDocuments?.length || 0} files</span>
+              </div>
               {selectedUser.kycDocuments?.length > 0 ? (
                 <div className={styles.docGrid}>
                   {selectedUser.kycDocuments.map((doc) => (
                     <div key={doc.id} className={styles.docCard}>
-                      <img
-                        src={`${getApiBaseUrl()}${doc.fileUrl}`}
-                        alt={DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
-                        className={styles.docImage}
-                        onClick={() => window.open(`${getApiBaseUrl()}${doc.fileUrl}`, '_blank')}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="180" fill="%23e5e7eb"><rect width="200" height="180"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%239ca3af" font-size="14">No Preview</text></svg>';
-                        }}
-                      />
-                      <div className={styles.docMeta}>
-                        <div className={styles.docType}>
-                          {DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
-                        </div>
-                        {doc.documentNumber && (
-                          <div className={styles.docNumber}>#{doc.documentNumber}</div>
+                      <div className={styles.docPreview}>
+                        {failedDocumentIds.includes(doc.id) ? (
+                          <div className={styles.previewUnavailable}>
+                            <ImageIcon size={28} />
+                            <span>Preview unavailable</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={getDocumentUrl(doc.fileUrl)}
+                            alt={DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
+                            className={styles.docImage}
+                            onError={() => setFailedDocumentIds((ids) => ids.includes(doc.id) ? ids : [...ids, doc.id])}
+                          />
                         )}
-                        <Badge
-                          variant={doc.status === 'APPROVED' ? 'accent' : doc.status === 'REJECTED' ? 'danger' : 'warning'}
+                        <button
+                          type="button"
+                          className={styles.openDocument}
+                          onClick={() => window.open(getDocumentUrl(doc.fileUrl), '_blank', 'noopener,noreferrer')}
                         >
-                          {doc.status}
-                        </Badge>
+                          <ExternalLink size={14} /> Open full document
+                        </button>
+                      </div>
+                      <div className={styles.docMeta}>
+                        <div className={styles.docMetaTop}>
+                          <div>
+                            <div className={styles.docType}>
+                              {DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
+                            </div>
+                            {doc.documentNumber && (
+                              <div className={styles.docNumber}>#{doc.documentNumber}</div>
+                            )}
+                          </div>
+                          <Badge
+                            variant={doc.status === 'APPROVED' ? 'accent' : doc.status === 'REJECTED' ? 'danger' : 'warning'}
+                          >
+                            {doc.status.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -299,38 +364,18 @@ export default function AdminKycPage() {
               ) : (
                 <p style={{ color: 'var(--color-text-secondary)' }}>No documents uploaded yet.</p>
               )}
-            </div>
+            </section>
 
-            {/* Actions */}
-            <div className={styles.reviewActions}>
-              {!showRejectInput ? (
-                <>
-                  <Button variant="primary" onClick={handleApprove} disabled={submitting} style={{ flex: 1 }}>
-                    <CheckCircle size={16} /> Approve KYC
-                  </Button>
-                  <Button variant="danger" onClick={() => setShowRejectInput(true)} disabled={submitting} style={{ flex: 1 }}>
-                    <XCircle size={16} /> Reject
-                  </Button>
-                </>
-              ) : (
-                <div style={{ width: '100%' }}>
-                  <Input
-                    label="Rejection Reason"
-                    placeholder="Explain why documents are not acceptable..."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                  />
-                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-                    <Button variant="danger" onClick={handleReject} disabled={submitting || !rejectionReason.trim()} style={{ flex: 1 }}>
-                      Confirm Rejection
-                    </Button>
-                    <Button variant="secondary" onClick={() => setShowRejectInput(false)} style={{ flex: 1 }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {showRejectInput && (
+              <div className={styles.rejectionPanel}>
+                <Input
+                  label="Rejection reason"
+                  placeholder="Explain why these documents cannot be approved..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                />
+              </div>
+            )}
           </div>
         )}
       </Modal>

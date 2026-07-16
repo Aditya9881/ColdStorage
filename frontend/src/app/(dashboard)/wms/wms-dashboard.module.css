@@ -241,3 +241,84 @@
   display: flex;
   gap: var(--space-2);
 }
+
+/* ── Pending Bookings ── */
+.bookingsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.bookingItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-xl);
+  transition: all var(--transition-fast);
+}
+
+.bookingItem:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.bookingInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.bookingFarmer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+
+.bookingPhone {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.bookingMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.bookingNumber {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.bookingActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .bookingItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .bookingActions {
+    width: 100%;
+  }
+}

@@ -1,0 +1,59 @@
+/* ============================================
+   Stats Counter — Animated Numbers Grid
+   ============================================ */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  background: #f0f4f8;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  background: #e2e8f0;
+  transform: translateY(-2px);
+}
+
+.number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-family: 'Georgia', serif;
+}
+
+.label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    padding: 20px 16px;
+  }
+
+  .number {
+    font-size: 1.5rem;
+  }
+}

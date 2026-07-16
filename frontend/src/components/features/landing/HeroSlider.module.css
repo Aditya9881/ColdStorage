@@ -1,0 +1,221 @@
+/* ============================================
+   Hero Slider — Premium Carousel
+   ============================================ */
+
+.slider {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.slidesTrack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.slideActive {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.slideImage {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 6s ease-out;
+}
+
+.slideActive .slideImage {
+  transform: scale(1.05);
+}
+
+.slideOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(11, 29, 54, 0.88) 0%,
+    rgba(11, 29, 54, 0.65) 50%,
+    rgba(11, 29, 54, 0.3) 100%
+  );
+}
+
+.slideContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 48px 52px;
+  max-width: 600px;
+}
+
+.slideTitle {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  margin-bottom: 14px;
+  letter-spacing: -0.02em;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.slideSubtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.7;
+  margin-bottom: 28px;
+  max-width: 420px;
+}
+
+.slideCtas {
+  display: flex;
+  gap: 12px;
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  background: #e8720c;
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(232, 114, 12, 0.35);
+}
+
+.ctaPrimary:hover {
+  background: #d16109;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(232, 114, 12, 0.4);
+}
+
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+  text-decoration: none;
+  backdrop-filter: blur(4px);
+}
+
+.ctaSecondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Arrows */
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 3;
+  backdrop-filter: blur(4px);
+}
+
+.arrow:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.arrowLeft {
+  left: 16px;
+}
+
+.arrowRight {
+  right: 16px;
+}
+
+/* Dots */
+.dots {
+  position: absolute;
+  bottom: 20px;
+  left: 52px;
+  display: flex;
+  gap: 8px;
+  z-index: 3;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.dotActive {
+  background: #e8720c;
+  width: 24px;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .slider {
+    height: 320px;
+    border-radius: 0;
+  }
+
+  .slideContent {
+    padding: 28px 24px;
+  }
+
+  .slideTitle {
+    font-size: 1.35rem;
+  }
+
+  .slideSubtitle {
+    font-size: 0.8125rem;
+    margin-bottom: 20px;
+  }
+
+  .slideCtas {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dots {
+    left: 24px;
+  }
+}

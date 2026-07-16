@@ -78,8 +78,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div className={styles.actions}>
               <Button variant="secondary" size="sm" icon={<FileDown size={14} />} onClick={() => {
-                const token = localStorage.getItem('accessToken');
-                window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/invoices/${id}/pdf?token=${token}`, '_blank');
+                api.downloadBlob(`/invoices/${id}/pdf`, `invoice-${invoice.invoiceNumber}.pdf`);
               }}>
                 Download PDF
               </Button>

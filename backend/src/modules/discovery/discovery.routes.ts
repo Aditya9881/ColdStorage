@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../../config/database';
+import { authenticate } from '../auth/auth.middleware';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest } from '../../shared/types';
 import { paramString } from '../../shared/utils/query-helpers';
@@ -40,14 +41,15 @@ router.get('/facilities', asyncHandler(async (req, res) => {
   });
 
   const enriched = facilities.map((f: any) => {
-    const totalCapacity = Number(f.totalCapacityMt);
-    const totalOccupied = f.chambers.reduce((sum: number, c: any) => sum + Number(c.occupiedMt), 0);
+    // Compute capacity from chambers (not the potentially-stale totalCapacityMt field)
+    const totalCapacity = f.chambers.reduce((sum: number, c: any) => sum + Number(c.capacityMt || 0), 0);
+    const totalOccupied = f.chambers.reduce((sum: number, c: any) => sum + Number(c.occupiedMt || 0), 0);
     const avgRating = f.reviews.length > 0
       ? f.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / f.reviews.length : null;
     const { reviews, ...rest } = f;
     return {
       ...rest, totalCapacity,
-      availableCapacity: totalCapacity - totalOccupied,
+      availableCapacity: Math.max(0, totalCapacity - totalOccupied),
       utilizationPercent: totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0,
       avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
       reviewCount: f._count.reviews,
@@ -73,15 +75,17 @@ router.get('/facilities/:id', asyncHandler(async (req, res) => {
   });
   if (!facility) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Facility not found' } }); return; }
 
-  const totalOccupied = facility.chambers.reduce((sum: number, c: any) => sum + Number(c.occupiedMt), 0);
+  // Compute capacity from chambers (not the potentially-stale totalCapacityMt field)
+  const totalCapacity = facility.chambers.reduce((sum: number, c: any) => sum + Number(c.capacityMt || 0), 0);
+  const totalOccupied = facility.chambers.reduce((sum: number, c: any) => sum + Number(c.occupiedMt || 0), 0);
   const avgRating = facility.reviews.length > 0
     ? facility.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / facility.reviews.length : null;
 
-  res.json({ success: true, data: { ...facility, availableCapacity: Number(facility.totalCapacityMt) - totalOccupied, avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null } });
+  res.json({ success: true, data: { ...facility, totalCapacity, availableCapacity: Math.max(0, totalCapacity - totalOccupied), avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null } });
 }));
 
 // ── POST /discover/facilities/:id/reviews — Authenticated ──
-router.post('/facilities/:id/reviews', asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/facilities/:id/reviews', authenticate, asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { rating, comment } = req.body;
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Login required to leave a review' } }); return; }

@@ -18,6 +18,7 @@ import { OtpPurpose } from '@prisma/client';
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
 const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID || '';
 const MSG91_SENDER_ID = process.env.MSG91_SENDER_ID || 'SHTKSH';
+const MSG91_APPROVAL_TEMPLATE_ID = process.env.MSG91_APPROVAL_TEMPLATE_ID || '';
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 5;
@@ -70,6 +71,39 @@ async function sendViaMSG91(phone: string, otp: string): Promise<boolean> {
   } catch (error) {
     console.error('[SMS] MSG91 send error:', error);
     return false;
+  }
+}
+
+/**
+ * Notify an approved cold-storage owner. This deliberately does not include a
+ * password: owners sign in with the credentials they selected at registration.
+ * Configure MSG91_APPROVAL_TEMPLATE_ID with a DLT-approved Flow template in
+ * production; development logs the delivery instead.
+ */
+export async function sendOwnerApprovalNotification(phone: string, fullName: string): Promise<void> {
+  if (isDev) {
+    console.log(`[SMS] Owner approval notification for ${phone}: ${fullName}, your cold-storage application is approved. Sign in with your registered credentials.`);
+    return;
+  }
+
+  if (!MSG91_AUTH_KEY || !MSG91_APPROVAL_TEMPLATE_ID) {
+    console.warn('[SMS] Owner approval SMS not sent: configure MSG91_AUTH_KEY and MSG91_APPROVAL_TEMPLATE_ID.');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://control.msg91.com/api/v5/flow/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authkey: MSG91_AUTH_KEY },
+      body: JSON.stringify({
+        template_id: MSG91_APPROVAL_TEMPLATE_ID,
+        short_url: '0',
+        recipients: [{ mobiles: `91${phone}`, name: fullName }],
+      }),
+    });
+    if (!response.ok) console.error(`[SMS] Owner approval SMS failed for ${phone}: ${response.status}`);
+  } catch (error) {
+    console.error(`[SMS] Owner approval SMS failed for ${phone}:`, error);
   }
 }
 

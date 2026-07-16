@@ -234,6 +234,7 @@ model User {
   // Owner-specific KYC
   csRegistrationNumber String? @map("cs_registration_number") @db.VarChar(50) // Cold Storage registration
   fssaiNumber          String? @map("fssai_number") @db.VarChar(20)          // FSSAI license number
+  companyRegistrationNumber String? @map("company_registration_number") @db.VarChar(50) // CIN / LLPIN
 
   // Auth
   passwordHash String    @map("password_hash") @db.VarChar(255)

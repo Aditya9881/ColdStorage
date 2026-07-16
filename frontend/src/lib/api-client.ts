@@ -1,3 +1,13 @@
+/**
+ * API Client — ColdStorage Frontend
+ *
+ * Uses httpOnly cookies for authentication (set by the backend).
+ * No tokens are stored in localStorage.
+ * All requests include `credentials: 'include'` so cookies are sent.
+ *
+ * C10: Refresh mutex prevents multiple concurrent refresh requests.
+ */
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 interface RequestOptions {
@@ -9,24 +19,10 @@ interface RequestOptions {
 
 class ApiClient {
   private baseUrl: string;
+  private refreshPromise: Promise<boolean> | null = null; // C10: mutex
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-  }
-
-  private getAccessToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('accessToken');
-  }
-
-  private setTokens(accessToken: string, refreshToken: string): void {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-  }
-
-  private clearTokens(): void {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
   }
 
   private buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
@@ -41,18 +37,17 @@ class ApiClient {
     return url.toString();
   }
 
+  /**
+   * Core request method — all API calls go through here.
+   * Cookies are sent automatically via `credentials: 'include'`.
+   */
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { method = 'GET', body, headers = {}, params } = options;
-    const token = this.getAccessToken();
 
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       ...headers,
     };
-
-    if (token) {
-      requestHeaders['Authorization'] = `Bearer ${token}`;
-    }
 
     const url = this.buildUrl(endpoint, params);
 
@@ -60,22 +55,35 @@ class ApiClient {
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include', // Send httpOnly cookies
     });
 
     // Handle token refresh on 401
-    if (response.status === 401 && token) {
-      const refreshed = await this.refreshToken();
-      if (refreshed) {
-        requestHeaders['Authorization'] = `Bearer ${this.getAccessToken()}`;
-        response = await fetch(url, {
-          method,
-          headers: requestHeaders,
-          body: body ? JSON.stringify(body) : undefined,
-        });
+    if (response.status === 401) {
+      // Don't attempt refresh for auth endpoints — they should fail silently
+      const isAuthEndpoint = endpoint === '/users/me' || endpoint.startsWith('/auth/');
+      
+      if (!isAuthEndpoint) {
+        const refreshed = await this.refreshToken();
+        if (refreshed) {
+          // Retry the original request (cookie is now refreshed)
+          response = await fetch(url, {
+            method,
+            headers: requestHeaders,
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'include',
+          });
+        } else {
+          // Only redirect if NOT already on the landing/auth page (prevents infinite loop)
+          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.search.includes('auth=login') && window.location.pathname !== '/') {
+            window.location.href = '/?auth=login';
+          }
+          throw new ApiError(401, 'SESSION_EXPIRED', 'Session expired — please log in again');
+        }
       } else {
-        this.clearTokens();
-        window.location.href = '/login';
-        throw new Error('Session expired');
+        // Auth endpoints (like /users/me) — just throw, don't redirect
+        const data = await response.json().catch(() => ({}));
+        throw new ApiError(401, data.error?.code || 'UNAUTHORIZED', data.error?.message || 'Not authenticated');
       }
     }
 
@@ -93,25 +101,39 @@ class ApiClient {
     return data;
   }
 
+  /**
+   * C10: Refresh token with mutex.
+   * Only ONE refresh request fires at a time. All concurrent 401s
+   * wait on the same promise.
+   */
   private async refreshToken(): Promise<boolean> {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) return false;
+    // If a refresh is already in progress, wait for it
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
 
+    this.refreshPromise = this._doRefresh();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async _doRefresh(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        credentials: 'include', // Send refresh token cookie
+        body: JSON.stringify({}), // Empty body — token is in cookie
       });
 
       if (!response.ok) return false;
 
       const data = await response.json();
-      if (data.success && data.data) {
-        this.setTokens(data.data.accessToken, data.data.refreshToken);
-        return true;
-      }
-      return false;
+      return data.success === true;
     } catch {
       return false;
     }
@@ -134,27 +156,99 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
 
+  /**
+   * Upload FormData (multipart/form-data) — for file uploads
+   * Does NOT set Content-Type (browser sets multipart boundary automatically)
+   */
+  async uploadFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+    const url = this.buildUrl(endpoint);
+    let response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    // Handle token refresh on 401
+    if (response.status === 401) {
+      const refreshed = await this.refreshToken();
+      if (refreshed) {
+        response = await fetch(url, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+      } else {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/' && !window.location.search.includes('auth=login')) {
+          window.location.href = '/?auth=login';
+        }
+        throw new ApiError(401, 'SESSION_EXPIRED', 'Session expired — please log in again');
+      }
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        data.error?.code || 'UNKNOWN_ERROR',
+        data.error?.message || 'An unexpected error occurred',
+        data.error?.details
+      );
+    }
+    return data;
+  }
+
+  /**
+   * Download a file as blob (for secure exports without token in URL)
+   */
+  async downloadBlob(endpoint: string, filename: string): Promise<void> {
+    const url = this.buildUrl(endpoint);
+    const response = await fetch(url, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  }
+
   // Auth helpers
   login(phone: string, password: string) {
     return this.post<{
       success: boolean;
-      data: { user: import('@/types/models').User; accessToken: string; refreshToken: string };
+      data: { user: import('@/types/models').User };
     }>('/auth/login', { phone, password });
   }
 
   register(data: { fullName: string; phone: string; email?: string; password: string; role: string }) {
     return this.post<{
       success: boolean;
-      data: { user: import('@/types/models').User; accessToken: string; refreshToken: string };
+      data: { user: import('@/types/models').User }
+        | { pending: true; message: string; userId: string };
     }>('/auth/register', data);
   }
 
+  /**
+   * Register owner with KYC documents via multipart upload
+   */
+  registerOwner(formData: FormData) {
+    return this.uploadFormData<{
+      success: boolean;
+      data: { pending: true; message: string; userId: string };
+    }>('/auth/register', formData);
+  }
+
   logout() {
-    const refreshToken = localStorage.getItem('refreshToken');
-    this.clearTokens();
-    if (refreshToken) {
-      return this.post('/auth/logout', { refreshToken });
-    }
+    return this.post('/auth/logout', {});
   }
 
   getProfile() {

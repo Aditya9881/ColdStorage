@@ -11,6 +11,21 @@ const router = Router();
 router.use(authenticate);
 
 /**
+ * Recalculate facility totalCapacityMt from the sum of all its operational chambers.
+ * Called after every chamber create, update, or delete.
+ */
+async function recalcFacilityCapacity(facilityId: string): Promise<void> {
+  const result = await prisma.chamber.aggregate({
+    where: { facilityId, status: { not: 'OFFLINE' } },
+    _sum: { capacityMt: true },
+  });
+  await prisma.facility.update({
+    where: { id: facilityId },
+    data: { totalCapacityMt: result._sum.capacityMt ?? 0 },
+  });
+}
+
+/**
  * POST /chambers — Add chamber to facility
  */
 router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
@@ -44,6 +59,9 @@ router.post('/', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
       storageType: storageType || 'BAG',
     },
   });
+
+  // Recalculate facility total capacity
+  await recalcFacilityCapacity(facilityId);
 
   sendSuccess(res, chamber, 201);
 }));
@@ -145,6 +163,11 @@ router.patch('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.AD
     },
   });
 
+  // Recalculate facility total capacity if capacity or status changed
+  if (capacityMt !== undefined || status !== undefined) {
+    await recalcFacilityCapacity(existing.facilityId);
+  }
+
   sendSuccess(res, updated);
 }));
 
@@ -179,6 +202,9 @@ router.delete('/:id', authorize(UserRole.OWNER, UserRole.SUPER_ADMIN), asyncHand
     where: { id },
     data: { status: 'OFFLINE' },
   });
+
+  // Recalculate facility total capacity (offline chamber excluded)
+  await recalcFacilityCapacity(chamber.facilityId);
 
   sendSuccess(res, { message: 'Chamber decommissioned successfully' });
 }));

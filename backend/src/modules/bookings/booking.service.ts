@@ -10,7 +10,12 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../shared/middleware/error-handler';
 import { createAuditLog } from '../../shared/utils/audit';
-import { generateBookingNumber, generateFacilityCode } from '../../shared/utils/id-generator';
+import {
+  generateBookingNumber,
+  generateFacilityCode,
+  generateLotNumber,
+  generateReceiptNumber,
+} from '../../shared/utils/id-generator';
 import { BookingStatus, CommodityCategory } from '@prisma/client';
 import { UserRole } from '../../shared/types';
 import crypto from 'crypto';
@@ -141,7 +146,7 @@ export class BookingService {
   /**
    * Get booking by ID (with relations)
    */
-  async getBookingById(bookingId: string, userId: string) {
+  async getBookingById(bookingId: string, userId: string, userRole: string, facilityId?: string) {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -168,13 +173,15 @@ export class BookingService {
       throw new AppError(404, 'NOT_FOUND', 'Booking not found');
     }
 
+    await this.assertBookingAccess(booking, userId, userRole, facilityId);
+
     return booking;
   }
 
   /**
    * Get booking by booking number
    */
-  async getBookingByNumber(bookingNumber: string) {
+  async getBookingByNumber(bookingNumber: string, userId: string, userRole: string, facilityId?: string) {
     const booking = await prisma.booking.findUnique({
       where: { bookingNumber },
       include: {
@@ -190,6 +197,8 @@ export class BookingService {
     if (!booking) {
       throw new AppError(404, 'NOT_FOUND', 'Booking not found');
     }
+
+    await this.assertBookingAccess(booking, userId, userRole, facilityId);
 
     return booking;
   }
@@ -222,7 +231,18 @@ export class BookingService {
   /**
    * List facility bookings (for owner/staff)
    */
-  async listFacilityBookings(facilityId: string, status?: BookingStatus, date?: string, page = 1, limit = 20) {
+  async listFacilityBookings(
+    facilityId: string,
+    userId: string,
+    userRole: string,
+    assignedFacilityId?: string,
+    status?: BookingStatus,
+    date?: string,
+    page = 1,
+    limit = 20,
+  ) {
+    await this.assertFacilityAccess(facilityId, userId, userRole, assignedFacilityId);
+
     const where: any = { facilityId };
     if (status) where.status = status;
     if (date) {
@@ -255,10 +275,15 @@ export class BookingService {
    * Update booking status (state machine transitions)
    */
   async updateBookingStatus(input: UpdateBookingStatusInput) {
-    const booking = await prisma.booking.findUnique({ where: { id: input.bookingId } });
+    const booking = await prisma.booking.findUnique({
+      where: { id: input.bookingId },
+      include: { facility: { select: { id: true, name: true, ownerId: true } } },
+    });
     if (!booking) {
       throw new AppError(404, 'NOT_FOUND', 'Booking not found');
     }
+
+    await this.assertBookingAccess(booking, input.userId, input.userRole);
 
     // Validate state transition
     this._validateTransition(booking.status, input.status, input.userRole);
@@ -310,18 +335,23 @@ export class BookingService {
         break;
     }
 
-    const updated = await prisma.booking.update({
-      where: { id: input.bookingId },
-      data: updateData,
-      include: {
-        facility: {
-          select: { id: true, name: true, city: true },
+    let updated;
+    if (input.status === 'STORED') {
+      updated = await this.storeBooking(booking, input, updateData);
+    } else {
+      updated = await prisma.booking.update({
+        where: { id: input.bookingId },
+        data: updateData,
+        include: {
+          facility: {
+            select: { id: true, name: true, city: true },
+          },
+          farmer: {
+            select: { id: true, fullName: true, phone: true },
+          },
         },
-        farmer: {
-          select: { id: true, fullName: true, phone: true },
-        },
-      },
-    });
+      });
+    }
 
     // Audit log
     await createAuditLog({
@@ -340,7 +370,7 @@ export class BookingService {
   /**
    * Verify QR code scan — called when owner/staff scans the farmer's QR
    */
-  async verifyQRScan(qrPayload: string, scannerId: string) {
+  async verifyQRScan(qrPayload: string, scannerId: string, scannerRole?: string, assignedFacilityId?: string) {
     let parsed: any;
     try {
       parsed = JSON.parse(qrPayload);
@@ -371,6 +401,8 @@ export class BookingService {
     if (booking.status !== 'CONFIRMED') {
       throw new AppError(400, 'INVALID_STATUS', `Cannot scan booking with status: ${booking.status}`);
     }
+
+    await this.assertFacilityAccess(booking.facilityId, scannerId, scannerRole || UserRole.STAFF, assignedFacilityId);
 
     // Transition to ARRIVED
     const updated = await prisma.booking.update({
@@ -432,6 +464,138 @@ export class BookingService {
     if (ownerStaffOnly.includes(next) && !['OWNER', 'STAFF', 'ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
       throw new AppError(403, 'FORBIDDEN', 'Only facility staff can perform this action');
     }
+  }
+
+  /** Ensure a caller can only see or act on bookings in their own scope. */
+  private async assertBookingAccess(
+    booking: { farmerId: string; facilityId: string; facility?: { ownerId?: string; [key: string]: unknown } | null },
+    userId: string,
+    userRole: string,
+    assignedFacilityId?: string,
+  ) {
+    if ([UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(userRole as UserRole)) return;
+    if (userRole === UserRole.FARMER && booking.farmerId === userId) return;
+
+    await this.assertFacilityAccess(booking.facilityId, userId, userRole, assignedFacilityId, booking.facility?.ownerId);
+  }
+
+  private async assertFacilityAccess(
+    bookingFacilityId: string,
+    userId: string,
+    userRole: string,
+    assignedFacilityId?: string,
+    knownOwnerId?: string,
+  ) {
+    if ([UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(userRole as UserRole)) return;
+    if (userRole === UserRole.STAFF && assignedFacilityId === bookingFacilityId) return;
+
+    if (userRole === UserRole.OWNER) {
+      const ownerId = knownOwnerId ?? (await prisma.facility.findUnique({
+        where: { id: bookingFacilityId },
+        select: { ownerId: true },
+      }))?.ownerId;
+      if (ownerId === userId) return;
+    }
+
+    throw new AppError(403, 'FORBIDDEN', 'You do not have access to this booking');
+  }
+
+  /**
+   * Finalise weighing and create the physical inventory record in one database
+   * transaction. A booking without a linked lot is not considered stored.
+   */
+  private async storeBooking(
+    booking: any,
+    input: UpdateBookingStatusInput,
+    updateData: Record<string, unknown>,
+  ) {
+    const chamberId = booking.chamberId ?? input.chamberId;
+    const actualWeightKg = input.actualWeightKg;
+
+    if (!chamberId) {
+      throw new AppError(400, 'CHAMBER_REQUIRED', 'Assign a chamber before confirming storage');
+    }
+    if (!actualWeightKg || actualWeightKg <= 0) {
+      throw new AppError(400, 'WEIGHT_REQUIRED', 'Actual weight is required before confirming storage');
+    }
+
+    const chamber = await prisma.chamber.findUnique({ where: { id: chamberId } });
+    if (!chamber || chamber.facilityId !== booking.facilityId) {
+      throw new AppError(400, 'INVALID_CHAMBER', 'The selected chamber does not belong to this facility');
+    }
+    if (chamber.status !== 'OPERATIONAL') {
+      throw new AppError(400, 'CHAMBER_OFFLINE', 'The selected chamber is not accepting storage');
+    }
+
+    const intakeWeightMt = actualWeightKg / 1000;
+    if (intakeWeightMt > Number(chamber.capacityMt) - Number(chamber.occupiedMt)) {
+      throw new AppError(400, 'INSUFFICIENT_CAPACITY', 'The selected chamber does not have sufficient capacity');
+    }
+
+    const pricing = await prisma.facilityPricing.findFirst({
+      where: {
+        facilityId: booking.facilityId,
+        commodityCategory: booking.commodityCategory,
+        status: 'ACTIVE',
+        effectiveFrom: { lte: new Date() },
+        OR: [{ effectiveUntil: null }, { effectiveUntil: { gte: new Date() } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+
+    const facilityCode = generateFacilityCode(booking.facility.name);
+    const lotSequence = await prisma.inventoryLot.count({ where: { facilityId: booking.facilityId } }) + 1;
+    const expectedRelease = booking.storageDuration
+      ? new Date(Date.now() + booking.storageDuration * 24 * 60 * 60 * 1000)
+      : null;
+
+    return prisma.$transaction(async (tx) => {
+      const lot = await tx.inventoryLot.create({
+        data: {
+          lotNumber: generateLotNumber(facilityCode, lotSequence),
+          receiptNumber: generateReceiptNumber(facilityCode, lotSequence),
+          facilityId: booking.facilityId,
+          chamberId,
+          depositorId: booking.farmerId,
+          commodityCategory: booking.commodityCategory,
+          commodityName: booking.commodityName,
+          intakeWeightKg: actualWeightKg,
+          currentWeightKg: actualWeightKg,
+          bagCount: input.actualBags ?? null,
+          status: 'STORED',
+          appliedRate: input.ratePerUnit ?? pricing?.rateAmount ?? null,
+          pricingModel: pricing?.pricingModel ?? null,
+          expectedRelease,
+          createdById: input.userId,
+        },
+      });
+
+      await tx.inventoryTransaction.create({
+        data: {
+          lotId: lot.id,
+          transactionType: 'INTAKE',
+          weightKg: actualWeightKg,
+          bagCount: input.actualBags ?? null,
+          notes: `Created from booking ${booking.bookingNumber}`,
+          performedById: input.userId,
+        },
+      });
+
+      await tx.chamber.update({
+        where: { id: chamberId },
+        data: { occupiedMt: { increment: intakeWeightMt } },
+      });
+
+      return tx.booking.update({
+        where: { id: booking.id },
+        data: { ...updateData, chamberId, lotId: lot.id },
+        include: {
+          facility: { select: { id: true, name: true, city: true } },
+          farmer: { select: { id: true, fullName: true, phone: true } },
+          lot: { select: { id: true, lotNumber: true, receiptNumber: true, status: true } },
+        },
+      });
+    });
   }
 }
 

@@ -29,13 +29,23 @@ if (isDev) {
   globalForPrisma.prisma = prisma;
 }
 
-export async function connectDatabase(): Promise<void> {
-  try {
-    await prisma.$connect();
-    console.log('[Database] Connected successfully');
-  } catch (error) {
-    console.error('[Database] Connection failed:', error);
-    process.exit(1);
+export async function connectDatabase(maxRetries = 3): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await prisma.$connect();
+      console.log('[Database] Connected successfully');
+      return;
+    } catch (error) {
+      console.error(`[Database] Connection attempt ${attempt}/${maxRetries} failed:`, error);
+      if (attempt === maxRetries) {
+        console.error('[Database] All connection attempts exhausted. Exiting.');
+        process.exit(1);
+      }
+      // Exponential backoff: 2s, 4s, 8s
+      const delay = Math.pow(2, attempt) * 1000;
+      console.log(`[Database] Retrying in ${delay / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
 }
 

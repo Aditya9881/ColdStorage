@@ -49,6 +49,20 @@ function getCurrentYear(): string {
   return new Date().getFullYear().toString();
 }
 
+function getFacilityCode(value: string): string {
+  const code = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+  return code.padEnd(6, 'X');
+}
+
+const generatedSequences = new Map<string, number>();
+
+function nextSequence(prefix: string, facilityCode: string, max: number): number {
+  const key = `${prefix}:${facilityCode}:${getCurrentYear()}`;
+  const next = (generatedSequences.get(key) ?? 0) + 1;
+  generatedSequences.set(key, next > max ? 1 : next);
+  return next > max ? 1 : next;
+}
+
 /**
  * Generate a facility code from its name
  * e.g. "PK Cold Storage Pvt. Ltd." → "PKCS"
@@ -125,8 +139,9 @@ export async function generateFacilityUniqueId(
  */
 export function generateLotNumber(facilityCode: string, sequence?: number): string {
   const year = getCurrentYear();
-  const seq = sequence ?? Math.floor(Math.random() * 99999) + 1;
-  return `LOT-${facilityCode}-${year}-${pad(seq, 5)}`;
+  const code = getFacilityCode(facilityCode);
+  const seq = sequence ?? nextSequence('LOT', code, 99999);
+  return `LOT-${code}-${year}-${pad(seq, 5)}`;
 }
 
 /**
@@ -134,18 +149,19 @@ export function generateLotNumber(facilityCode: string, sequence?: number): stri
  */
 export function generateReceiptNumber(facilityCode: string, sequence?: number): string {
   const year = getCurrentYear();
-  const seq = sequence ?? Math.floor(Math.random() * 99999) + 1;
-  return `RCT-${facilityCode}-${year}-${pad(seq, 5)}`;
+  const code = getFacilityCode(facilityCode);
+  const seq = sequence ?? nextSequence('RCT', code, 99999);
+  return `RCT-${code}-${year}-${pad(seq, 5)}`;
 }
 
 /**
  * Generate an invoice number: INV-PKCS-202507-042
  */
 export function generateInvoiceNumber(facilityCode: string, sequence?: number): string {
-  const now = new Date();
-  const monthStr = `${now.getFullYear()}${pad(now.getMonth() + 1, 2)}`;
-  const seq = sequence ?? Math.floor(Math.random() * 999) + 1;
-  return `INV-${facilityCode}-${monthStr}-${pad(seq, 3)}`;
+  const year = getCurrentYear();
+  const code = getFacilityCode(facilityCode);
+  const seq = sequence ?? nextSequence('INV', code, 99999);
+  return `INV-${code}-${year}-${pad(seq, 5)}`;
 }
 
 /**
@@ -162,8 +178,9 @@ export function generateBookingNumber(facilityCode: string, sequence: number): s
  */
 export function generateGatePassNumber(facilityCode: string, sequence?: number): string {
   const year = getCurrentYear();
-  const seq = sequence ?? Math.floor(Math.random() * 99999) + 1;
-  return `GP-${facilityCode}-${year}-${pad(seq, 5)}`;
+  const code = getFacilityCode(facilityCode);
+  const seq = sequence ?? nextSequence('GP', code, 99999);
+  return `GP-${code}-${year}-${pad(seq, 5)}`;
 }
 
 export const idGenerator = {

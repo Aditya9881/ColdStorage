@@ -107,13 +107,13 @@ describe('POST /inventory/intake', () => {
 // List Lots
 // ─────────────────────────────────────────────
 
-describe('GET /inventory', () => {
+describe('GET /inventory/lots', () => {
   it('should list lots for facility owner', async () => {
     await createTestLot(facility.id, chamber.id, farmer.id, owner.id);
     await createTestLot(facility.id, chamber.id, farmer.id, owner.id);
 
     const res = await request(app)
-      .get(API)
+      .get(`${API}/lots`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .expect(200);
 
@@ -127,13 +127,13 @@ describe('GET /inventory', () => {
     await createTestLot(facility.id, chamber.id, otherFarmer.id, owner.id);
 
     const res = await request(app)
-      .get(API)
+      .get(`${API}/my-lots`)
       .set('Authorization', `Bearer ${farmer.accessToken}`)
       .expect(200);
 
     expect(res.body.success).toBe(true);
     // Farmer should only see their own lots
-    const allForFarmer = res.body.data.every(
+    const allForFarmer = res.body.data.lots.every(
       (lot: any) => lot.depositorId === farmer.id
     );
     expect(allForFarmer).toBe(true);
@@ -144,12 +144,12 @@ describe('GET /inventory', () => {
 // Get Lot Detail
 // ─────────────────────────────────────────────
 
-describe('GET /inventory/:id', () => {
+describe('GET /inventory/lots/:id', () => {
   it('should return full lot details', async () => {
     const lot = await createTestLot(facility.id, chamber.id, farmer.id, owner.id);
 
     const res = await request(app)
-      .get(`${API}/${lot.id}`)
+      .get(`${API}/lots/${lot.id}`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .expect(200);
 
@@ -160,7 +160,7 @@ describe('GET /inventory/:id', () => {
 
   it('should return 404 for non-existent lot', async () => {
     await request(app)
-      .get(`${API}/00000000-0000-0000-0000-000000000000`)
+      .get(`${API}/lots/00000000-0000-0000-0000-000000000000`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .expect(404);
   });
@@ -170,7 +170,7 @@ describe('GET /inventory/:id', () => {
 // Release Lot
 // ─────────────────────────────────────────────
 
-describe('POST /inventory/:id/release', () => {
+describe('POST /inventory/lots/:id/release', () => {
   it('should partially release a lot', async () => {
     const lot = await createTestLot(facility.id, chamber.id, farmer.id, owner.id, {
       intakeWeightKg: 5000,
@@ -178,7 +178,7 @@ describe('POST /inventory/:id/release', () => {
     });
 
     const res = await request(app)
-      .post(`${API}/${lot.id}/release`)
+      .post(`${API}/lots/${lot.id}/release`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .send({ weightKg: 2000, notes: 'Partial release for sale' })
       .expect(200);
@@ -195,7 +195,7 @@ describe('POST /inventory/:id/release', () => {
     });
 
     const res = await request(app)
-      .post(`${API}/${lot.id}/release`)
+      .post(`${API}/lots/${lot.id}/release`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .send({ weightKg: 1000 })
       .expect(200);
@@ -212,7 +212,7 @@ describe('POST /inventory/:id/release', () => {
     });
 
     await request(app)
-      .post(`${API}/${lot.id}/release`)
+      .post(`${API}/lots/${lot.id}/release`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .send({ weightKg: 5000 })
       .expect(400);
@@ -223,14 +223,14 @@ describe('POST /inventory/:id/release', () => {
 // Quality Update
 // ─────────────────────────────────────────────
 
-describe('PATCH /inventory/:id/quality', () => {
+describe('PATCH /inventory/lots/:id/quality', () => {
   it('should update quality grade of a lot', async () => {
     const lot = await createTestLot(facility.id, chamber.id, farmer.id, owner.id, {
       qualityGrade: 'A',
     });
 
     const res = await request(app)
-      .patch(`${API}/${lot.id}/quality`)
+      .patch(`${API}/lots/${lot.id}/quality`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .send({
         qualityGrade: 'B',
