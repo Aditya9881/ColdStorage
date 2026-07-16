@@ -10,18 +10,14 @@ let redisGaveUp = false;
 export function getRedis(): Redis {
   if (!redis) {
     redis = new Redis(REDIS_URL, {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: 1,
       retryStrategy(times) {
-        // In dev: give up after 3 attempts — stop log spam when Redis isn't running
-        if (isDev && times > 3) {
+        // Give up quickly — stop log spam when Redis isn't running
+        if (times > 3) {
           redisGaveUp = true;
           return null as unknown as number; // Stop retrying
         }
-        // In prod: exponential backoff, max 30s, give up after 20 attempts
-        if (times > 20) {
-          return null as unknown as number;
-        }
-        return Math.min(times * 500, 30000);
+        return Math.min(times * 500, 3000);
       },
       lazyConnect: true,
       enableReadyCheck: true,
