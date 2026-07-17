@@ -22,17 +22,17 @@ export function Input({
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
   return (
-    <div className={`${styles.wrapper} ${className}`}>
+    <div className={`${styles.inputGroup} ${className}`}>
       {label && (
         <label htmlFor={inputId} className={styles.label}>
           {label}
         </label>
       )}
-      <div className={`${styles.inputContainer} ${error ? styles.hasError : ''}`}>
-        {icon && <span className={styles.icon}>{icon}</span>}
+      <div className={`${styles.inputWrapper} ${error ? styles.hasError : ''}`}>
+        {icon && <span className={styles.inputIcon}>{icon}</span>}
         <input
           id={inputId}
-          className={`${styles.input} ${icon ? styles.withIcon : ''}`}
+          className={styles.input}
           {...props}
         />
       </div>
@@ -52,7 +52,7 @@ export function Select({ label, error, options, id, className = '', ...props }: 
   const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
   return (
-    <div className={`${styles.wrapper} ${className}`}>
+    <div className={`${styles.selectWrapper} ${className}`}>
       {label && (
         <label htmlFor={selectId} className={styles.label}>
           {label}
@@ -60,7 +60,7 @@ export function Select({ label, error, options, id, className = '', ...props }: 
       )}
       <select
         id={selectId}
-        className={`${styles.input} ${styles.select} ${error ? styles.inputError : ''}`}
+        className={`${styles.select} ${error ? styles.hasError : ''}`}
         {...props}
       >
         {options.map((opt) => (
@@ -73,3 +73,4 @@ export function Select({ label, error, options, id, className = '', ...props }: 
     </div>
   );
 }
+
