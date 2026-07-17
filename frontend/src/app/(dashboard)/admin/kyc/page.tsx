@@ -133,7 +133,10 @@ export default function AdminKycPage() {
   const getDocumentUrl = (fileUrl: string) => {
     if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    if (apiUrl && !apiUrl.endsWith('/api/v1')) {
+      apiUrl = apiUrl.replace(/\/+$/, '') + '/api/v1';
+    }
     const backendOrigin = apiUrl.replace(/\/api\/v1\/?$/, '');
     return `${backendOrigin}${fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`}`;
   };

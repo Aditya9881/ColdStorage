@@ -8,7 +8,11 @@
  * C10: Refresh mutex prevents multiple concurrent refresh requests.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+let API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+if (API_BASE && !API_BASE.endsWith('/api/v1')) {
+  API_BASE = API_BASE.replace(/\/+$/, '') + '/api/v1';
+}
+
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

@@ -21,7 +21,11 @@ import {
 import type { InventoryLot, InventoryTransaction } from '@/types/models';
 import styles from './lot-detail.module.css';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+let API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+if (API_BASE && !API_BASE.endsWith('/api/v1')) {
+  API_BASE = API_BASE.replace(/\/+$/, '') + '/api/v1';
+}
+
 
 export default function LotDetailPage() {
   const params = useParams();
