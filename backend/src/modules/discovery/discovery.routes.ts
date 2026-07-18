@@ -107,14 +107,23 @@ router.post('/facilities/:id/reviews', authenticate, asyncHandler(async (req: Au
 // ── GET /discover/facilities/:id/reviews ──
 router.get('/facilities/:id/reviews', asyncHandler(async (req, res) => {
   const id = paramString(req.params.id);
-  const reviews = await prisma.facilityReview.findMany({
-    where: { facilityId: id },
-    include: { user: { select: { id: true, fullName: true } } },
-    orderBy: { createdAt: 'desc' },
-  });
-  const avgRating = reviews.length > 0
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : null;
-  res.json({ success: true, data: { reviews, avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null, total: reviews.length } });
+  const pageNum = Math.max(1, parseInt(String(req.query.page ?? '1')));
+  const pageSize = Math.min(50, parseInt(String(req.query.limit ?? '20')));
+
+  const [reviews, total] = await Promise.all([
+    prisma.facilityReview.findMany({
+      where: { facilityId: id },
+      include: { user: { select: { id: true, fullName: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.facilityReview.count({ where: { facilityId: id } }),
+  ]);
+  const avgRating = total > 0
+    ? (await prisma.facilityReview.aggregate({ where: { facilityId: id }, _avg: { rating: true } }))._avg.rating
+    : null;
+  res.json({ success: true, data: { reviews, avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null, total, pagination: { page: pageNum, limit: pageSize, totalPages: Math.ceil(total / pageSize) } } });
 }));
 
 export default router;

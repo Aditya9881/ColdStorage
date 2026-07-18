@@ -53,4 +53,4 @@ EXPOSE 4000
 
 ENV NODE_ENV=production
 
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/src/server.js"]

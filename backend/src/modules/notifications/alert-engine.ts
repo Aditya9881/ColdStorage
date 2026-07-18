@@ -194,18 +194,15 @@ async function checkChamberCapacityWarnings() {
 }
 
 export function startAlertEngine() {
-  if (process.env.NODE_ENV !== 'development') {
-    logger.info('[AlertEngine] Skipping — not in development mode');
-    return;
-  }
+  const intervalMs = parseInt(process.env.ALERT_CHECK_INTERVAL_MS || '', 10) || 5 * 60 * 1000;
 
-  logger.info('[AlertEngine] Starting alert engine (interval: 5min)');
+  logger.info(`[AlertEngine] Starting alert engine (interval: ${Math.round(intervalMs / 1000)}s)`);
 
   // Run initial check after 10s (let temp simulator create some data first)
   setTimeout(checkAlerts, 10_000);
 
-  // Then check every 5 minutes
-  alertInterval = setInterval(checkAlerts, 5 * 60 * 1000);
+  // Then check on the configured interval
+  alertInterval = setInterval(checkAlerts, intervalMs);
 }
 
 export function stopAlertEngine() {

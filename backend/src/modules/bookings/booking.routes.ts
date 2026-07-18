@@ -8,6 +8,7 @@ import { prisma } from '../../config/database';
 import { sendSuccess, errors } from '../../shared/utils/api-response';
 import { asyncHandler } from '../../shared/middleware/error-handler';
 import { BookingStatus } from '@prisma/client';
+import { idempotent } from '../../shared/middleware/idempotency';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ const router = Router();
 router.use(authenticate);
 
 // ── Farmer Routes ──
-router.post('/', authorize(UserRole.FARMER), validate({ body: createBookingSchema }), bookingController.create);
+router.post('/', authorize(UserRole.FARMER), validate({ body: createBookingSchema }), idempotent, bookingController.create);
 router.get('/my', authorize(UserRole.FARMER, UserRole.BUYER), bookingController.listMine);
 
 // ── Shared Routes ──

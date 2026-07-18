@@ -42,21 +42,31 @@ async function startServer(): Promise<void> {
     // Alert engine: runs in all environments to catch temp/capacity/expiry alerts.
     startAlertEngine();
 
-    // Session cleanup: prune expired refresh token sessions every hour
-    const SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
+    // Session + OTP cleanup: prune expired records every hour
+    const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
     setInterval(async () => {
       try {
         const { prisma } = await import('./config/database');
-        const { count } = await prisma.userSession.deleteMany({
+
+        // Prune expired sessions
+        const sessions = await prisma.userSession.deleteMany({
           where: { expiresAt: { lt: new Date() } },
         });
-        if (count > 0) {
-          logger.info(`[SessionCleanup] Pruned ${count} expired sessions`);
+        if (sessions.count > 0) {
+          logger.info(`[Cleanup] Pruned ${sessions.count} expired sessions`);
+        }
+
+        // Prune expired OTPs
+        const otps = await prisma.phoneOTP.deleteMany({
+          where: { expiresAt: { lt: new Date() } },
+        });
+        if (otps.count > 0) {
+          logger.info(`[Cleanup] Pruned ${otps.count} expired OTPs`);
         }
       } catch (err) {
-        logger.error('[SessionCleanup] Failed to prune sessions', { error: String(err) });
+        logger.error('[Cleanup] Failed to prune expired records', { error: String(err) });
       }
-    }, SESSION_CLEANUP_INTERVAL);
+    }, CLEANUP_INTERVAL);
   });
 
   // Graceful shutdown

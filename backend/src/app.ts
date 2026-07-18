@@ -58,11 +58,37 @@ if (isProd) {
 app.use(helmet({
   contentSecurityPolicy: isProd ? undefined : false, // CSP in prod, disabled in dev for hot reload
 }));
+// ── CORS — env-driven allowlist ────────────────
+const allowedOrigins: string[] = [
+  // Always allow localhost variants for development
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:8082',
+  'http://localhost:19006', // Expo web
+];
+
+// Add production origins from CORS_ORIGIN env var
+if (env.CORS_ORIGIN) {
+  env.CORS_ORIGIN.split(',')
+    .map((o: string) => o.trim())
+    .filter(Boolean)
+    .forEach((o: string) => {
+      if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
+    });
+}
+
 app.use(cors({
-  origin: true, // Allow all origins (web + mobile + any frontend)
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // In development, allow any origin for convenience
+    if (!isProd) return callback(null, true);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 }));
 
 // ── Parsing ───────────────────────────────────────

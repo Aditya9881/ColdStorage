@@ -12,6 +12,7 @@ import {
   updateQualitySchema,
   transferLotSchema,
 } from '../../shared/schemas';
+import { idempotent } from '../../shared/middleware/idempotency';
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.post(
   '/intake',
   authorize(UserRole.STAFF, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN),
   validate({ body: intakeLotSchema }),
+  idempotent,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const lot = await inventoryService.intakeLot({
       ...req.body,
