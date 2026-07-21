@@ -214,7 +214,7 @@ router.get('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
     select: {
-      id: true, fullName: true, phone: true, email: true,
+      id: true, uniqueId: true, fullName: true, phone: true, email: true,
       role: true, status: true, addressLine1: true, city: true,
       state: true, pincode: true, facilityId: true,
       createdAt: true, updatedAt: true,
@@ -247,7 +247,8 @@ router.patch('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
     },
     select: {
       id: true, fullName: true, phone: true, email: true,
-      role: true, addressLine1: true, city: true, state: true, pincode: true,
+      role: true, status: true, uniqueId: true,
+      addressLine1: true, city: true, state: true, pincode: true,
     },
   });
 
