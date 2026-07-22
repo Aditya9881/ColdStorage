@@ -37,8 +37,14 @@ export default function DashboardLayout({
       return;
     }
 
-    // Farmers/Buyers shouldn't access web dashboard at all
-    if (role === 'FARMER' || role === 'BUYER') {
+    // Farmers get their own dashboard
+    if (role === 'FARMER') {
+      router.replace('/farmer');
+      return;
+    }
+
+    // Buyers shouldn't access web dashboard at all
+    if (role === 'BUYER') {
       router.replace('/');
       return;
     }

@@ -1,0 +1,553 @@
+/* =====================================================
+   Farmer Home Page — Premium Mobile-First Design
+===================================================== */
+
+.page {
+  min-height: 100vh;
+  background: #F5F7F4;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #15231E;
+}
+
+.main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+/* ── Greeting ── */
+
+.greetingSection {
+  padding: 24px 16px 8px;
+}
+
+.greeting {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #718079;
+  margin: 0 0 2px;
+}
+
+.userName {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #103E34;
+  letter-spacing: -0.03em;
+  margin: 0 0 4px;
+  line-height: 1.15;
+}
+
+.greetingSub {
+  font-size: 0.78rem;
+  color: #96A19B;
+  margin: 0;
+}
+
+/* ── Live Status Cards ── */
+
+.statusCards {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 16px 16px 0;
+}
+
+.statusCard {
+  position: relative;
+  background: #FFFFFF;
+  padding: 20px 20px 18px;
+  border: 1px solid #E8EDE9;
+  transition: transform 0.18s ease;
+}
+
+.statusCard:first-child {
+  border-radius: 16px 16px 0 0;
+}
+
+.statusCard:last-child {
+  border-radius: 0 0 16px 16px;
+}
+
+.statusCard:hover {
+  transform: translateX(2px);
+}
+
+.statusIconWrap {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #F0F4F1;
+  color: #3E5248;
+  margin-bottom: 14px;
+}
+
+.statusBadge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #96A19B;
+}
+
+.statusLabel {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #5B6B63;
+  margin: 0 0 4px;
+}
+
+.statusValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.statusValue {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #103E34;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.statusUnit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #96A19B;
+}
+
+/* ── Sections ── */
+
+.section {
+  padding: 24px 16px 0;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sectionEyebrow {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #96A19B;
+  margin-bottom: 3px;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #17A56D;
+  box-shadow: 0 0 6px rgba(23, 165, 109, 0.5);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
+
+.sectionTitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #15231E;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.seeAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #103E34;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: inherit;
+}
+
+.seeAllBtn:hover {
+  color: #0D5444;
+}
+
+/* ── Bookings ── */
+
+.bookingsScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bookingCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #FFFFFF;
+  border: 1px solid #E8EDE9;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+  width: 100%;
+}
+
+.bookingCard:hover {
+  transform: translateY(-1px);
+  border-color: #D1E5D8;
+}
+
+.bookingTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bookingIcon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #E8F9F7;
+  color: #0D8D8A;
+  flex-shrink: 0;
+}
+
+.bookingInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.bookingNumber {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: #15231E;
+}
+
+.bookingCommodity {
+  display: block;
+  font-size: 0.72rem;
+  color: #718079;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookingStatus {
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  background: #F0F4F1;
+  color: #5B6B63;
+}
+
+.status_PENDING { background: #FFF7E6; color: #B7791F; }
+.status_CONFIRMED { background: #E8F7F1; color: #0D7A62; }
+.status_ARRIVED { background: #EAF8FC; color: #2589AA; }
+.status_STORED { background: #E8F9F7; color: #0D8D8A; }
+.status_CANCELLED { background: #FFF0F0; color: #D94A4A; }
+
+.bookingBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #F0F4F1;
+}
+
+.bookingMeta {
+  font-size: 0.72rem;
+  color: #96A19B;
+}
+
+/* ── Discovery Section ── */
+
+.discoverySection {
+  padding: 32px 16px 0;
+}
+
+.discoveryTitle {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #15231E;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+}
+
+.discoverySub {
+  font-size: 0.82rem;
+  color: #718079;
+  margin: 0 0 16px;
+}
+
+/* ── Search Card ── */
+
+.searchCard {
+  background: #FFFFFF;
+  border: 1px solid #E2E9E3;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(15, 23, 18, 0.04);
+}
+
+.searchField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  position: relative;
+}
+
+.searchFieldIcon {
+  color: #718079;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #15231E;
+  background: transparent;
+  font-family: inherit;
+}
+
+.searchInput::placeholder {
+  color: #96A19B;
+  font-weight: 500;
+}
+
+.locationBtn {
+  padding: 5px 10px;
+  border: 1px solid #D1E5D8;
+  border-radius: 7px;
+  background: #F0F8F4;
+  color: #103E34;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.locationBtn:hover {
+  background: #D1E5D8;
+}
+
+.searchDivider {
+  height: 1px;
+  background: #EDF1EE;
+  margin: 0 14px;
+}
+
+.searchSelect {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #15231E;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.selectArrow {
+  color: #96A19B;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.searchBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 12px;
+  background: #103E34;
+  color: #FFFFFF;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.searchBtn:hover {
+  background: #0D5444;
+  transform: translateY(-1px);
+}
+
+.searchBtn:active {
+  transform: scale(0.98);
+}
+
+/* ── Facilities List ── */
+
+.facilitiesList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loadingState,
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+  text-align: center;
+  font-size: 0.84rem;
+  color: #96A19B;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E8EDE9;
+  border-top-color: #103E34;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── CTA Card ── */
+
+.ctaCard {
+  margin-top: 28px;
+  padding: 32px 24px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #0A2E25 0%, #103E34 50%, #135647 100%);
+  color: #FFFFFF;
+  text-align: center;
+}
+
+.ctaTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #D4C9A8;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.ctaSub {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.ctaButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ctaBtnGold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #D29424, #B7791F);
+  color: #FFFFFF;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.ctaBtnGold:hover {
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+.ctaBtnOutline {
+  width: 100%;
+  padding: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.ctaBtnOutline:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Responsive ── */
+
+@media (min-width: 768px) {
+  .main {
+    max-width: 720px;
+  }
+
+  .statusCards {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .statusCard {
+    flex: 1;
+    border-radius: 16px !important;
+  }
+
+  .ctaButtons {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .ctaBtnGold,
+  .ctaBtnOutline {
+    flex: 1;
+  }
+}

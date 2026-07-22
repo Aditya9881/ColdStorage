@@ -1,0 +1,227 @@
+.card {
+  background: #FFFFFF;
+  border: 1px solid #E8EDE9;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(15, 23, 18, 0.08);
+}
+
+/* ── Image ── */
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #E8EDE9;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.card:hover .image {
+  transform: scale(1.04);
+}
+
+.verifiedBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: rgba(16, 62, 52, 0.88);
+  backdrop-filter: blur(6px);
+}
+
+/* ── Content ── */
+
+.content {
+  padding: 16px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.name {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: #15231E;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 750;
+  color: #3E5248;
+  flex-shrink: 0;
+}
+
+/* ── Location ── */
+
+.location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #718079;
+  margin-bottom: 14px;
+}
+
+/* ── Capacity ── */
+
+.capacitySection {
+  margin-bottom: 10px;
+}
+
+.capacityHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.capacityLabel {
+  font-size: 0.76rem;
+  font-weight: 650;
+  color: #5B6B63;
+}
+
+.capacityValue {
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: #15231E;
+  font-variant-numeric: tabular-nums;
+}
+
+.capacityBarTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #EDF1EE;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.capacityBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.capacityStatus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+/* ── Commodity ── */
+
+.commodityRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: #718079;
+  margin-bottom: 14px;
+}
+
+/* ── Price ── */
+
+.priceRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #EDF1EE;
+}
+
+.priceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.priceLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #96A19B;
+}
+
+.priceAmount {
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+}
+
+.rupee {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #15231E;
+}
+
+.priceValue {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #15231E;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.priceUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #718079;
+  margin-left: 2px;
+}
+
+.bookBtn {
+  padding: 10px 20px;
+  border: 1px solid #103E34;
+  border-radius: 10px;
+  background: #103E34;
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.bookBtn:hover {
+  background: #0D5444;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 62, 52, 0.24);
+}
+
+.bookBtn:active {
+  transform: scale(0.97);
+}

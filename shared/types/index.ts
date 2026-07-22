@@ -271,6 +271,7 @@ export interface Facility {
   ownerId: string;
   contactPhone: string | null;
   contactEmail: string | null;
+  imageUrl: string | null;
   verifiedAt: string | null;
   verifiedBy: string | null;
   verificationNotes: string | null;

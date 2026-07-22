@@ -47,6 +47,7 @@ interface FormData {
   phone: string; otpCode: string; phoneVerified: boolean;
   fullName: string; email: string; password: string; confirmPassword: string;
   businessName: string; facilityCapacityMt: string; facilityStorageType: 'BAG' | 'BULK' | 'HYBRID'; gstNumber: string; csRegistrationNumber: string; companyRegistrationNumber: string; fssaiNumber: string;
+  facilityImage: File | null;
   addressLine1: string; city: string; district: string; state: string; pincode: string;
   aadhaarNumber: string; panNumber: string;
   aadhaarFront: File | null; aadhaarBack: File | null; panCard: File | null;
@@ -56,6 +57,7 @@ const initialFormData: FormData = {
   phone: '', otpCode: '', phoneVerified: false,
   fullName: '', email: '', password: '', confirmPassword: '',
   businessName: '', facilityCapacityMt: '', facilityStorageType: 'BAG', gstNumber: '', csRegistrationNumber: '', companyRegistrationNumber: '', fssaiNumber: '',
+  facilityImage: null,
   addressLine1: '', city: '', district: '', state: '', pincode: '',
   aadhaarNumber: '', panNumber: '',
   aadhaarFront: null, aadhaarBack: null, panCard: null,
@@ -122,7 +124,8 @@ export function RegisterModal({ isOpen, onClose, onSwitchToLogin }: RegisterModa
         break;
       case 2: if (!form.businessName.trim()) e.businessName = 'Business name is required';
         if (!form.facilityCapacityMt || Number(form.facilityCapacityMt) <= 0) e.facilityCapacityMt = 'Enter total storage capacity in MT';
-        if (form.gstNumber && !isValidGST(form.gstNumber)) e.gstNumber = 'Invalid GST format'; break;
+        if (form.gstNumber && !isValidGST(form.gstNumber)) e.gstNumber = 'Invalid GST format';
+        if (!form.facilityImage) (e as any).facilityImage = 'Facility photo is required'; break;
       case 3:
         if (!form.addressLine1.trim()) e.addressLine1 = 'Address is required';
         if (!form.city.trim()) e.city = 'City is required';
@@ -165,6 +168,7 @@ export function RegisterModal({ isOpen, onClose, onSwitchToLogin }: RegisterModa
       if (form.aadhaarFront) fd.append('aadhaarFront', form.aadhaarFront);
       if (form.aadhaarBack) fd.append('aadhaarBack', form.aadhaarBack);
       if (form.panCard) fd.append('panCard', form.panCard);
+      if (form.facilityImage) fd.append('facilityImage', form.facilityImage);
       const res = await fetch(`${API_BASE}/auth/register`, { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Registration failed');
@@ -264,6 +268,30 @@ export function RegisterModal({ isOpen, onClose, onSwitchToLogin }: RegisterModa
               <Input label="CS Registration Number" placeholder="State CS reg. number" value={form.csRegistrationNumber} onChange={(e) => set('csRegistrationNumber', e.target.value)} />
               <Input label="Company Reg. (CIN/LLPIN)" placeholder="e.g. U74110DL2019PTC349519" value={form.companyRegistrationNumber} onChange={(e) => set('companyRegistrationNumber', e.target.value.toUpperCase())} />
               <Input label="FSSAI License" placeholder="14-digit" value={form.fssaiNumber} onChange={(e) => set('fssaiNumber', e.target.value.replace(/\D/g, '').slice(0, 14))} />
+              <div style={{ marginTop: 8 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 650, color: '#2a3b33', marginBottom: 6 }}>Facility Photo <span style={{ color: '#D94A4A' }}>*</span></label>
+                <p style={{ fontSize: '0.72rem', color: '#718079', margin: '0 0 8px' }}>Upload a clear exterior photo of your facility. Min 800×450px, 16:9 recommended.</p>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style={{ fontSize: '0.82rem' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    set('facilityImage', file);
+                  }}
+                />
+                {form.facilityImage && (
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <img
+                      src={URL.createObjectURL(form.facilityImage)}
+                      alt="Preview"
+                      style={{ width: 80, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid #E2E9E3' }}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: '#0D7A62', fontWeight: 600 }}>✓ {form.facilityImage.name}</span>
+                  </div>
+                )}
+                {(errors as any).facilityImage && <p style={{ fontSize: '0.72rem', color: '#D94A4A', marginTop: 4 }}>{(errors as any).facilityImage}</p>}
+              </div>
             </>}
 
             {/* Step 3 — Address */}

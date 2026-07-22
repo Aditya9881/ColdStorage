@@ -11,12 +11,23 @@ const router = Router();
 
 // ── GET /discover/facilities — Search facilities ──
 router.get('/facilities', asyncHandler(async (req, res) => {
-  const { commodity, state, city, page = '1', limit = '20' } = req.query;
+  const { commodity, state, city, search, page = '1', limit = '20' } = req.query;
 
   const where: any = { status: 'ACTIVE' };
   if (commodity) where.chambers = { some: { commodityCategory: commodity, status: 'OPERATIONAL' } };
   if (state) where.state = { contains: state, mode: 'insensitive' };
   if (city) where.city = { contains: city, mode: 'insensitive' };
+
+  // Text search across name, city, state
+  if (search) {
+    const searchStr = String(search);
+    where.OR = [
+      { name: { contains: searchStr, mode: 'insensitive' } },
+      { city: { contains: searchStr, mode: 'insensitive' } },
+      { state: { contains: searchStr, mode: 'insensitive' } },
+      { district: { contains: searchStr, mode: 'insensitive' } },
+    ];
+  }
 
   const pageNum = Math.max(1, parseInt(String(page ?? '1')));
   const pageSize = Math.min(50, parseInt(String(limit ?? '20')));
@@ -40,12 +51,32 @@ router.get('/facilities', asyncHandler(async (req, res) => {
     orderBy: { name: 'asc' },
   });
 
+  // Parse lat/lng from query for distance calculation
+  const userLat = req.query.lat ? parseFloat(String(req.query.lat)) : null;
+  const userLng = req.query.lng ? parseFloat(String(req.query.lng)) : null;
+
   const enriched = facilities.map((f: any) => {
     // Compute capacity from chambers (not the potentially-stale totalCapacityMt field)
     const totalCapacity = f.chambers.reduce((sum: number, c: any) => sum + Number(c.capacityMt || 0), 0);
     const totalOccupied = f.chambers.reduce((sum: number, c: any) => sum + Number(c.occupiedMt || 0), 0);
     const avgRating = f.reviews.length > 0
       ? f.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / f.reviews.length : null;
+
+    // Calculate distance from user if lat/lng provided
+    let distanceKm: number | null = null;
+    if (userLat != null && userLng != null && f.latitude && f.longitude) {
+      const fLat = Number(f.latitude);
+      const fLng = Number(f.longitude);
+      const R = 6371; // Earth's radius in km
+      const dLat = (fLat - userLat) * Math.PI / 180;
+      const dLon = (fLng - userLng) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(userLat * Math.PI / 180) * Math.cos(fLat * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      distanceKm = Math.round(R * c * 10) / 10;
+    }
+
     const { reviews, ...rest } = f;
     return {
       ...rest, totalCapacity,
@@ -53,8 +84,14 @@ router.get('/facilities', asyncHandler(async (req, res) => {
       utilizationPercent: totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0,
       avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
       reviewCount: f._count.reviews,
+      distanceKm,
     };
   });
+
+  // Sort by distance if user coordinates provided
+  if (userLat != null && userLng != null) {
+    enriched.sort((a: any, b: any) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+  }
 
   const total = await prisma.facility.count({ where });
   res.json({ success: true, data: { facilities: enriched, pagination: { page: pageNum, limit: pageSize, total, totalPages: Math.ceil(total / pageSize) } } });

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Snowflake,
   LogIn,
@@ -141,6 +142,7 @@ const TRUST_ITEMS = [
 ];
 
 export function LandingPage() {
+  const router = useRouter();
   const featuresReveal = useReveal();
   const journeyReveal = useReveal();
   const benefitsReveal = useReveal();
@@ -204,6 +206,7 @@ export function LandingPage() {
             <a href="#features">Platform</a>
             <a href="#journey">How it works</a>
             <a href="#why">Why ColdStorage</a>
+            <a href="/discover">Discover</a>
 
             <div className={styles.navSearch}>
               <Search size={14} />
@@ -211,6 +214,12 @@ export function LandingPage() {
                 type="text"
                 placeholder="Search warehouses"
                 aria-label="Search warehouses"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    if (val) router.push(`/discover?search=${encodeURIComponent(val)}`);
+                  }
+                }}
               />
             </div>
           </nav>

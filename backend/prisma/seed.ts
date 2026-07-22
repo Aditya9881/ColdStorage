@@ -104,6 +104,7 @@ async function main() {
       lat: 27.1767, lng: 78.0081,
       capacity: 11000, type: StorageType.BAG, status: FacilityStatus.ACTIVE,
       ownerId: owners[0].id, phone: '9876543210', email: 'info@pkcold.in',
+      imageUrl: '/images/facilities/pk-cold-storage.png',
       verified: true,
     },
     {
@@ -115,6 +116,7 @@ async function main() {
       lat: 22.7196, lng: 75.8577,
       capacity: 5000, type: StorageType.HYBRID, status: FacilityStatus.ACTIVE,
       ownerId: owners[1].id, phone: '9876543211',
+      imageUrl: '/images/facilities/shree-cold-storage.png',
       verified: true,
     },
     {
@@ -126,6 +128,7 @@ async function main() {
       lat: 20.0063, lng: 73.7890,
       capacity: 8000, type: StorageType.HYBRID, status: FacilityStatus.PENDING_REVIEW,
       ownerId: owners[2].id, phone: '9876543212',
+      imageUrl: '/images/facilities/fresh-agro-cold-chain.png',
       verified: false,
     },
   ];
@@ -149,6 +152,7 @@ async function main() {
         ownerId: fd.ownerId,
         contactPhone: fd.phone,
         contactEmail: fd.email,
+        imageUrl: fd.imageUrl,
         verifiedAt: fd.verified ? new Date() : undefined,
         verifiedBy: fd.verified ? admin.id : undefined,
       },
