@@ -104,7 +104,7 @@ async function main() {
       lat: 27.1767, lng: 78.0081,
       capacity: 11000, type: StorageType.BAG, status: FacilityStatus.ACTIVE,
       ownerId: owners[0].id, phone: '9876543210', email: 'info@pkcold.in',
-      imageUrl: '/images/facilities/pk-cold-storage.png',
+      imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&h=450&fit=crop&q=80',
       verified: true,
     },
     {
@@ -116,7 +116,7 @@ async function main() {
       lat: 22.7196, lng: 75.8577,
       capacity: 5000, type: StorageType.HYBRID, status: FacilityStatus.ACTIVE,
       ownerId: owners[1].id, phone: '9876543211',
-      imageUrl: '/images/facilities/shree-cold-storage.png',
+      imageUrl: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&h=450&fit=crop&q=80',
       verified: true,
     },
     {
@@ -128,7 +128,7 @@ async function main() {
       lat: 20.0063, lng: 73.7890,
       capacity: 8000, type: StorageType.HYBRID, status: FacilityStatus.PENDING_REVIEW,
       ownerId: owners[2].id, phone: '9876543212',
-      imageUrl: '/images/facilities/fresh-agro-cold-chain.png',
+      imageUrl: 'https://images.unsplash.com/photo-1565610222536-ef125c59da2e?w=800&h=450&fit=crop&q=80',
       verified: false,
     },
   ];
@@ -137,7 +137,7 @@ async function main() {
   for (const fd of facilityDefs) {
     const facility = await prisma.facility.upsert({
       where: { registrationNumber: fd.regNumber },
-      update: {},
+      update: { imageUrl: fd.imageUrl },
       create: {
         name: fd.name,
         registrationNumber: fd.regNumber,
