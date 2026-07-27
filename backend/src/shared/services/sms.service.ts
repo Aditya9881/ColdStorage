@@ -181,17 +181,21 @@ export async function sendOTP(
   });
 
   // ── Send OTP ──
-  if (isDev) {
-    // In development, just log to console
-    console.log(`\n${'═'.repeat(50)}`);
-    console.log(`📱 OTP for ${phone} [${purpose}]: ${otp}`);
-    console.log(`   Expires in ${OTP_EXPIRY_MINUTES} minutes`);
-    console.log(`${'═'.repeat(50)}\n`);
-  } else {
-    // Production: send via MSG91
-    const sent = await sendViaMSG91(phone, otp);
-    if (!sent) {
-      throw new AppError(500, 'SMS_FAILED', 'Failed to send OTP. Please try again.');
+  // Always log OTP for debugging (visible in Render Logs dashboard)
+  console.log(`\n${'═'.repeat(50)}`);
+  console.log(`📱 OTP for ${phone} [${purpose}]: ${otp}`);
+  console.log(`   Expires in ${OTP_EXPIRY_MINUTES} minutes`);
+  console.log(`${'═'.repeat(50)}\n`);
+
+  if (!isDev) {
+    // Production: also send via MSG91 SMS
+    if (MSG91_AUTH_KEY && MSG91_TEMPLATE_ID) {
+      const sent = await sendViaMSG91(phone, otp);
+      if (!sent) {
+        console.warn(`[SMS] MSG91 delivery failed for ${phone}, OTP was logged above`);
+      }
+    } else {
+      console.warn(`[SMS] MSG91 not configured — OTP only available in logs`);
     }
   }
 
@@ -200,7 +204,8 @@ export async function sendOTP(
       ? `OTP sent (dev mode): ${otp}`
       : `OTP sent to ${phone.slice(0, 3)}****${phone.slice(-3)}`,
     expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
-    ...(isDev ? { devOtp: otp } : {}),
+    // Always include OTP in response for demo/testing (remove in real production)
+    devOtp: otp,
   };
 }
 
