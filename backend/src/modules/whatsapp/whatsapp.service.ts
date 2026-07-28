@@ -24,7 +24,7 @@ interface QuickButton {
 async function sendRequest(payload: any): Promise<boolean> {
   try {
     const url = `${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`;
-    console.log(`[WhatsApp] Sending message to ${payload.to}`);
+    console.log(`[WhatsApp] Sending message to ${payload.to || payload.message_id || 'recipient'}`);
 
     const response = await fetch(url, {
       method: 'POST',
