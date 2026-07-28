@@ -23,13 +23,16 @@ interface QuickButton {
 
 async function sendRequest(payload: any): Promise<boolean> {
   try {
-    const url = `${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN || '';
+
+    const url = `${WHATSAPP_API_URL}/${phoneNumberId}/messages`;
     console.log(`[WhatsApp] Sending message to ${payload.to || payload.message_id || 'recipient'}`);
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
