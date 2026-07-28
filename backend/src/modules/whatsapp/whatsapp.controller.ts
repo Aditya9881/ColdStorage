@@ -18,11 +18,11 @@ export function verifyWebhook(req: Request, res: Response): void {
   const token = req.query['hub.verify_token'] as string;
   const challenge = req.query['hub.challenge'] as string;
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token && token.trim() === VERIFY_TOKEN.trim()) {
     console.log('[WhatsApp] Webhook verified ✅');
     res.status(200).send(challenge);
   } else {
-    console.warn('[WhatsApp] Webhook verification failed — token mismatch');
+    console.warn(`[WhatsApp] Webhook verification failed — received token: "${token}", expected: "${VERIFY_TOKEN}"`);
     res.sendStatus(403);
   }
 }
