@@ -32,6 +32,7 @@ export function verifyWebhook(req: Request, res: Response): void {
  * Receives incoming messages from Meta Cloud API.
  */
 export async function handleWebhook(req: Request, res: Response): Promise<void> {
+  console.log('[WhatsApp] 📬 Webhook POST received:', JSON.stringify(req.body));
   // Always respond 200 immediately (Meta expects fast response)
   res.sendStatus(200);
 
