@@ -44,6 +44,9 @@ import reviewRoutes from './modules/reviews/reviews.routes';
 import warehouseReceiptRoutes from './modules/warehouse-receipts/warehouse-receipts.routes';
 import escrowRoutes from './modules/escrow/escrow.routes';
 import fileDownloadRoutes from './shared/routes/file-download.routes';
+
+// Phase B: WhatsApp Bot
+import whatsappRoutes from './modules/whatsapp/whatsapp.routes';
 import path from 'path';
 import { setupSwagger } from './shared/swagger';
 import { isProd } from './config/env';
@@ -175,6 +178,9 @@ app.use(`${api}/escrow`, escrowRoutes);
 
 // Protected file downloads
 app.use(`${api}/files`, fileDownloadRoutes);
+
+// Phase B: WhatsApp Bot (public — no auth, Meta webhook needs direct access)
+app.use(`${api}/whatsapp`, whatsappRoutes);
 
 // ── API Documentation ─────────────────────────────
 setupSwagger(app);

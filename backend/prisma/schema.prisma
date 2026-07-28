@@ -1007,3 +1007,21 @@ model IoTDevice {
   @@map("iot_devices")
 }
 
+/// WhatsApp Bot — Tracks conversation state per phone number
+/// Enables multi-step flows (booking, dispatch, etc.) via stateful sessions
+model WhatsAppSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  phone         String   @unique @db.VarChar(15)
+  userId        String?  @map("user_id") @db.Uuid
+  currentFlow   String?  @map("current_flow") @db.VarChar(50)  /// MAIN_MENU | BOOKING | MANDI_PRICES | etc.
+  flowStep      Int      @default(0) @map("flow_step")
+  flowData      Json?    @map("flow_data")                     /// Temp data collected during multi-step flows
+  lastMessageAt DateTime @default(now()) @map("last_message_at") @db.Timestamptz()
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([userId])
+  @@index([lastMessageAt])
+  @@map("whatsapp_sessions")
+}
+
