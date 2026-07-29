@@ -3,12 +3,11 @@
  * Uses the market-prices service directly (no HTTP loopback)
  */
 import { whatsappService } from '../whatsapp.service';
-import { getMandiPrices } from '../../market-prices/market-prices.service';
+import { getMandiPrices, CommodityPriceGroup, MandiPrice } from '../../market-prices/market-prices.service';
 
 /** Fetch and show mandi prices, optionally filtered by commodity */
 export async function showMandiPrices(phone: string, commodity?: string): Promise<void> {
   try {
-    // Call the market-prices service directly
     const { prices } = await getMandiPrices(undefined, undefined, commodity);
 
     if (!prices || prices.length === 0) {
@@ -25,14 +24,14 @@ export async function showMandiPrices(phone: string, commodity?: string): Promis
     const lines: string[] = [];
     for (const group of prices.slice(0, 5)) {
       const commodityName = group.commodity || 'Unknown';
-      for (const mandi of (group.mandis || []).slice(0, 3)) {
-        const trendEmoji = mandi.trend === 'up' ? '📈' : mandi.trend === 'down' ? '📉' : '➡️';
-        const trendLabel = mandi.trend === 'up' ? 'UP' : mandi.trend === 'down' ? 'DOWN' : 'STABLE';
+      const unit = group.unit || 'Qtl';
 
+      for (const m of group.mandis.slice(0, 3)) {
         lines.push(
-          `🌾 *${commodityName}* (${mandi.mandi}${mandi.district ? `, ${mandi.district}` : ''})\n` +
-          `   Modal: ₹${mandi.modalPrice?.toLocaleString('en-IN')}/${mandi.unit || 'Qtl'} | Range: ₹${mandi.minPrice?.toLocaleString('en-IN')} – ₹${mandi.maxPrice?.toLocaleString('en-IN')}\n` +
-          `   Trend: ${trendEmoji} ${trendLabel}`
+          `🌾 *${commodityName}* (${m.name}${m.district ? `, ${m.district}` : ''})\n` +
+          `   Modal: ₹${m.modalPrice?.toLocaleString('en-IN')}/${unit}\n` +
+          `   Range: ₹${m.minPrice?.toLocaleString('en-IN')} – ₹${m.maxPrice?.toLocaleString('en-IN')}\n` +
+          `   ${m.variety ? `Variety: ${m.variety}` : ''}`
         );
       }
     }
