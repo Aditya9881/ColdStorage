@@ -17,19 +17,56 @@ export interface SessionData {
 
 /** Get or create a session for a phone number */
 export async function getSession(phone: string): Promise<SessionData> {
-  const session = await prisma.whatsAppSession.upsert({
-    where: { phone },
-    create: { phone },
-    update: { lastMessageAt: new Date() },
-  });
-  return {
-    id: session.id,
-    phone: session.phone,
-    userId: session.userId,
-    currentFlow: session.currentFlow,
-    flowStep: session.flowStep,
-    flowData: session.flowData as any,
-  };
+  try {
+    const session = await prisma.whatsAppSession.upsert({
+      where: { phone },
+      create: { phone },
+      update: { lastMessageAt: new Date() },
+    });
+    return {
+      id: session.id,
+      phone: session.phone,
+      userId: session.userId,
+      currentFlow: session.currentFlow,
+      flowStep: session.flowStep,
+      flowData: session.flowData as any,
+    };
+  } catch (err: any) {
+    // If table doesn't exist, create it and retry
+    if (err.code === 'P2021' || err.message?.includes('does not exist')) {
+      console.log('[WhatsApp] Creating whatsapp_sessions table...');
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "whatsapp_sessions" (
+          "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+          "phone" VARCHAR(15) NOT NULL,
+          "user_id" UUID,
+          "current_flow" VARCHAR(50),
+          "flow_step" INTEGER NOT NULL DEFAULT 0,
+          "flow_data" JSONB,
+          "last_message_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "whatsapp_sessions_pkey" PRIMARY KEY ("id")
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "whatsapp_sessions_phone_key" ON "whatsapp_sessions"("phone");
+      `);
+      // Retry
+      const session = await prisma.whatsAppSession.upsert({
+        where: { phone },
+        create: { phone },
+        update: { lastMessageAt: new Date() },
+      });
+      return {
+        id: session.id,
+        phone: session.phone,
+        userId: session.userId,
+        currentFlow: session.currentFlow,
+        flowStep: session.flowStep,
+        flowData: session.flowData as any,
+      };
+    }
+    throw err;
+  }
 }
 
 /** Update current flow, step, and data */

@@ -1,30 +1,17 @@
 /**
  * Mandi Prices Flow — Show market prices via WhatsApp
+ * Uses the market-prices service directly (no HTTP loopback)
  */
 import { whatsappService } from '../whatsapp.service';
-import { formatMandiPrice } from '../response-builder';
-
-const MANDI_API_BASE = process.env.BACKEND_URL || 'https://coldstorage-4wbr.onrender.com';
+import { getMandiPrices } from '../../market-prices/market-prices.service';
 
 /** Fetch and show mandi prices, optionally filtered by commodity */
 export async function showMandiPrices(phone: string, commodity?: string): Promise<void> {
   try {
-    // Call the market-prices API internally
-    let url = `${MANDI_API_BASE}/api/market-prices?limit=15`;
-    if (commodity) {
-      url += `&commodity=${encodeURIComponent(commodity)}`;
-    }
+    // Call the market-prices service directly
+    const { prices } = await getMandiPrices(undefined, undefined, commodity);
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      await whatsappService.sendText(phone, '❌ Unable to fetch mandi prices right now. Please try again later.\n\nReply *menu* for options.');
-      return;
-    }
-
-    const result = await response.json() as any;
-    const prices = result?.data?.prices || result?.data || [];
-
-    if (!Array.isArray(prices) || prices.length === 0) {
+    if (!prices || prices.length === 0) {
       await whatsappService.sendText(
         phone,
         commodity
@@ -34,14 +21,29 @@ export async function showMandiPrices(phone: string, commodity?: string): Promis
       return;
     }
 
-    const formatted = prices.slice(0, 10).map(formatMandiPrice).join('\n\n');
+    // Format the grouped prices
+    const lines: string[] = [];
+    for (const group of prices.slice(0, 5)) {
+      const commodityName = group.commodity || 'Unknown';
+      for (const mandi of (group.mandis || []).slice(0, 3)) {
+        const trendEmoji = mandi.trend === 'up' ? '📈' : mandi.trend === 'down' ? '📉' : '➡️';
+        const trendLabel = mandi.trend === 'up' ? 'UP' : mandi.trend === 'down' ? 'DOWN' : 'STABLE';
+
+        lines.push(
+          `🌾 *${commodityName}* (${mandi.mandi}${mandi.district ? `, ${mandi.district}` : ''})\n` +
+          `   Modal: ₹${mandi.modalPrice?.toLocaleString('en-IN')}/${mandi.unit || 'Qtl'} | Range: ₹${mandi.minPrice?.toLocaleString('en-IN')} – ₹${mandi.maxPrice?.toLocaleString('en-IN')}\n` +
+          `   Trend: ${trendEmoji} ${trendLabel}`
+        );
+      }
+    }
+
     const header = commodity
       ? `📊 *Mandi Prices — ${commodity.charAt(0).toUpperCase() + commodity.slice(1)}*`
       : `📊 *Today's Mandi Prices*`;
 
     await whatsappService.sendText(
       phone,
-      `${header}\n\n${formatted}\n\n──────────\n\n💡 Filter by commodity:\nReply *potato price*, *onion price*, etc.\n\nReply *menu* for main menu.`
+      `${header}\n\n${lines.join('\n\n')}\n\n──────────\n\n💡 Filter by commodity:\nReply *potato price*, *onion price*, etc.\n\nReply *menu* for main menu.`
     );
   } catch (err) {
     console.error('[WhatsApp] Mandi prices error:', err);
