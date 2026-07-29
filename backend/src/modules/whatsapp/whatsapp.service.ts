@@ -5,9 +5,12 @@
  * Supports: text, interactive lists, buttons, images, templates.
  */
 
-const WHATSAPP_API_URL = 'https://graph.facebook.com/v21.0';
+const WHATSAPP_API_URL = 'https://graph.facebook.com/v25.0';
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || '';
+
+// Startup log to verify env vars are loaded
+console.log(`[WhatsApp] Service initialized — Phone ID: ${PHONE_NUMBER_ID ? PHONE_NUMBER_ID.slice(0, 6) + '...' : '❌ MISSING'}, Token: ${ACCESS_TOKEN ? '✅ set (' + ACCESS_TOKEN.length + ' chars)' : '❌ MISSING'}`);
 
 interface ListSection {
   title: string;
