@@ -205,8 +205,8 @@ export async function sendOTP(
       : `OTP sent to ${phone.slice(0, 3)}****${phone.slice(-3)}`,
     expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
     // Always include OTP in response for demo/testing (remove in real production)
-    devOtp: otp,
-  };
+    ...(otp ? { devOtp: otp } : {}),
+  } as any;
 }
 
 /**
