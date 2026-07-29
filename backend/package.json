@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "npx prisma generate && tsc",
-    "start": "node dist/src/server.js",
-    "render-build": "npm install --include=dev && npx prisma generate && tsc && npx prisma migrate resolve --rolled-back 20260723000000_update_facility_images 2>/dev/null; npx prisma migrate deploy",
+    "start": "npx prisma migrate deploy && node dist/src/server.js",
+    "render-build": "npm install --include=dev && npx prisma generate && tsc",
     "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
