@@ -14,18 +14,19 @@ import { prisma } from '../../../config/database';
 import { whatsappService } from '../whatsapp.service';
 import { sessionManager } from '../session-manager';
 import { formatFacility, emoji } from '../response-builder';
+import { t, Lang } from '../language';
 
 const CATEGORIES = [
-  { key: 'POTATO', label: 'Potato', emoji: '🥔' },
-  { key: 'ONION', label: 'Onion', emoji: '🧅' },
-  { key: 'VEGETABLES', label: 'Vegetables', emoji: '🥬' },
-  { key: 'FRUITS', label: 'Fruits', emoji: '🍎' },
-  { key: 'DAIRY', label: 'Dairy', emoji: '🧊' },
-  { key: 'SEEDS', label: 'Seeds', emoji: '🌱' },
-  { key: 'OTHER', label: 'Other', emoji: '📦' },
+  { key: 'POTATO', label: 'Potato', labelHi: 'आलू' },
+  { key: 'ONION', label: 'Onion', labelHi: 'प्याज' },
+  { key: 'VEGETABLES', label: 'Vegetables', labelHi: 'सब्ज़ियाँ' },
+  { key: 'FRUITS', label: 'Fruits', labelHi: 'फल' },
+  { key: 'DAIRY', label: 'Dairy', labelHi: 'डेयरी' },
+  { key: 'SEEDS', label: 'Seeds', labelHi: 'बीज' },
+  { key: 'OTHER', label: 'Other', labelHi: 'अन्य' },
 ];
 
-export async function startBookingFlow(phone: string): Promise<void> {
+export async function startBookingFlow(phone: string, lang: Lang = 'en'): Promise<void> {
   // Fetch active facilities
   const facilities = await prisma.facility.findMany({
     where: { status: 'ACTIVE' },
@@ -35,19 +36,20 @@ export async function startBookingFlow(phone: string): Promise<void> {
   });
 
   if (facilities.length === 0) {
-    await whatsappService.sendText(phone, '😕 No cold storage facilities are currently available. Please try again later.\n\nReply *menu* to go back.');
+    await whatsappService.sendText(phone, t('noFacilities', lang));
     await sessionManager.clearFlow(phone);
     return;
   }
 
-  const facilityList = facilities.map((f, i) => formatFacility(f, i)).join('\n\n');
+  const facilityListFn = t('facilityItem', lang);
+  const facilityList = facilities.map((f: any, i: number) => facilityListFn(f, i)).join('\n\n');
 
   await whatsappService.sendText(
     phone,
-    `📦 *Book Storage*\n\nChoose a cold storage facility:\n\n${facilityList}\n\n_Reply with the number (e.g., 1)_`
+    `${t('selectFacility', lang)}${facilityList}${t('selectPrompt', lang)}`
   );
 
-  await sessionManager.updateFlow(phone, 'BOOKING', 0, { facilities: facilities.map(f => ({ id: f.id, name: f.name })) });
+  await sessionManager.updateFlow(phone, 'BOOKING', 0, { lang, facilities: facilities.map(f => ({ id: f.id, name: f.name })) });
 }
 
 export async function handleBookingStep(phone: string, message: string, session: any): Promise<void> {
@@ -64,7 +66,7 @@ export async function handleBookingStep(phone: string, message: string, session:
       }
 
       const facility = data.facilities[idx];
-      const categoryList = CATEGORIES.map((c, i) => `${i + 1}️⃣ ${c.emoji} ${c.label}`).join('\n');
+      const categoryList = CATEGORIES.map((c, i) => `▸ *${i + 1}*  ${c.label}`).join('\n');
 
       await whatsappService.sendText(
         phone,
@@ -90,7 +92,7 @@ export async function handleBookingStep(phone: string, message: string, session:
       const category = CATEGORIES[idx];
       await whatsappService.sendText(
         phone,
-        `${category.emoji} Category: *${category.label}*\n\n✏️ *Enter the commodity name*\n(e.g., Aloo Chandramukhi, Pyaaz Red)\n\n_Type the name:_`
+        `Category: *${category.label}*\n\nEnter the commodity name\n(e.g., Aloo Chandramukhi, Pyaaz Red)\n\n_Type the name:_`
       );
 
       await sessionManager.updateFlow(phone, 'BOOKING', 2, {

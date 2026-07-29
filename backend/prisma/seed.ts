@@ -220,6 +220,7 @@ async function main() {
   // 6. FARMERS (5 total)
   // ════════════════════════════════════════════════
   const farmerDefs = [
+    { fullName: 'Aditya Sonkar', phone: '9305712366', city: 'Agra', state: 'Uttar Pradesh' },
     { fullName: 'Ram Prasad Verma', phone: '9800000001', city: 'Agra', state: 'Uttar Pradesh' },
     { fullName: 'Lakshmi Devi', phone: '9800000002', city: 'Mathura', state: 'Uttar Pradesh' },
     { fullName: 'Govind Singh Patel', phone: '9800000003', city: 'Firozabad', state: 'Uttar Pradesh' },
