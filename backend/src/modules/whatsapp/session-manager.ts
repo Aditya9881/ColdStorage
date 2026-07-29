@@ -109,13 +109,38 @@ export async function findLinkedUser(phone: string) {
   if (session?.userId) {
     return prisma.user.findUnique({ where: { id: session.userId } });
   }
-  // Try finding user by phone directly
+
+  // WhatsApp sends phone as "919235330553" (country code + number, no +)
+  // DB might store as "+919235330553", "919235330553", or "9235330553"
+  // Build all possible formats to try
+  const phoneCandidates: string[] = [phone]; // raw: 919235330553
+
+  if (!phone.startsWith('+')) {
+    phoneCandidates.push(`+${phone}`); // +919235330553
+  }
+  // For Indian numbers: strip country code to get 10-digit local number
+  if (phone.startsWith('91') && phone.length === 12) {
+    phoneCandidates.push(phone.slice(2)); // 9235330553
+  }
+  // If it starts with +91
+  if (phone.startsWith('+91') && phone.length === 13) {
+    phoneCandidates.push(phone.slice(3)); // 9235330553
+  }
+
+  console.log(`[WhatsApp] Looking up user with phone candidates:`, phoneCandidates);
+
   const user = await prisma.user.findFirst({
-    where: { phone },
+    where: {
+      phone: { in: phoneCandidates },
+    },
   });
+
   if (user) {
-    // Auto-link
+    console.log(`[WhatsApp] Found user: ${user.id} (${(user as any).fullName || (user as any).name})`);
+    // Auto-link for future lookups
     await linkUser(phone, user.id);
+  } else {
+    console.log(`[WhatsApp] No user found for phone candidates:`, phoneCandidates);
   }
   return user;
 }
