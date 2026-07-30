@@ -33,7 +33,7 @@ export async function startBookingFlow(phone: string, lang: Lang = 'en'): Promis
     // Fetch active facilities
     const facilities = await prisma.facility.findMany({
       where: { status: 'ACTIVE' as any },
-      select: { id: true, name: true, city: true, state: true, totalCapacityMT: true },
+      select: { id: true, name: true, city: true, state: true, totalCapacityMt: true },
       take: 10,
       orderBy: { name: 'asc' },
     });
@@ -51,7 +51,7 @@ export async function startBookingFlow(phone: string, lang: Lang = 'en'): Promis
 
     // Format facility list
     const facilityList = facilities.map((f, i) =>
-      `▸ *${i + 1}*  ${f.name}\n     ${f.city || ''}, ${f.state || ''}${f.totalCapacityMT ? ` · ${f.totalCapacityMT} MT` : ''}`
+      `▸ *${i + 1}*  ${f.name}\n     ${f.city || ''}, ${f.state || ''}${f.totalCapacityMt ? ` · ${f.totalCapacityMt} MT` : ''}`
     ).join('\n\n');
 
     const header = lang === 'hi'

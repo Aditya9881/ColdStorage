@@ -116,8 +116,8 @@ const STRINGS = {
     hi: `*कोल्ड स्टोरेज बुक करें*\n━━━━━━━━━━━━━━━━━━━━━━\n\nसुविधा चुनें:\n\n`,
   },
   facilityItem: {
-    en: (f: any, i: number) => `▸ *${i + 1}*  ${f.name}\n     ${f.city || ''}, ${f.state || ''}${f.totalCapacityMT ? ` · ${f.totalCapacityMT} MT` : ''}`,
-    hi: (f: any, i: number) => `▸ *${i + 1}*  ${f.name}\n     ${f.city || ''}, ${f.state || ''}${f.totalCapacityMT ? ` · ${f.totalCapacityMT} MT` : ''}`,
+    en: (f: any, i: number) => `▸ *${i + 1}*  ${f.name}\n     ${f.city || ''}, ${f.state || ''}${f.totalCapacityMt ? ` · ${f.totalCapacityMt} MT` : ''}`,
+    hi: (f: any, i: number) => `▸ *${i + 1}*  ${f.name}\n     ${f.city || ''}, ${f.state || ''}${f.totalCapacityMt ? ` · ${f.totalCapacityMt} MT` : ''}`,
   },
   selectPrompt: {
     en: `\n━━━━━━━━━━━━━━━━━━━━━━\n_Reply with number (e.g. 1)_`,

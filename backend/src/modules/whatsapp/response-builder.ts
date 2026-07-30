@@ -95,7 +95,7 @@ export function formatFacility(f: any, index: number): string {
   return [
     `${index + 1}️⃣ *${f.name}*`,
     `   📍 ${f.city || ''}, ${f.state || ''}`,
-    f.totalCapacityMT ? `   📊 ${f.totalCapacityMT} MT capacity` : '',
+    f.totalCapacityMt ? `   📊 ${f.totalCapacityMt} MT capacity` : '',
   ].filter(Boolean).join('\n');
 }
 
