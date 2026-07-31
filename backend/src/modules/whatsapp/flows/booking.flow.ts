@@ -302,8 +302,8 @@ export async function handleBookingStep(phone: string, message: string, session:
         });
 
         const successMsg = lang === 'hi'
-          ? `*बुकिंग सफल!*\n━━━━━━━━━━━━━━━━━━━━━━\n\nबुकिंग नं   *#${booking.bookingNumber}*\nसुविधा       ${data.facilityName}\nफसल          ${data.commodityName} — ${data.estimatedWeightKg?.toLocaleString('en-IN')} Kg\nतारीख        ${data.preferredDateDisplay}\n\nस्थिति        *PENDING*\n\nमालिक की पुष्टि का इंतज़ार है।\nसुविधा गेट पर बुकिंग QR दिखाएं।\n\n━━━━━━━━━━━━━━━━━━━━━━\n_*menu* भेजें_`
-          : `*Booking Confirmed!*\n━━━━━━━━━━━━━━━━━━━━━━\n\nBooking     *#${booking.bookingNumber}*\nFacility      ${data.facilityName}\nCommodity   ${data.commodityName} — ${data.estimatedWeightKg?.toLocaleString('en-IN')} Kg\nDate          ${data.preferredDateDisplay}\n\nStatus       *PENDING*\n\nAwaiting owner confirmation.\nShow booking QR at facility gate.\n\n━━━━━━━━━━━━━━━━━━━━━━\n_Send *menu* for options_`;
+          ? `*बुकिंग अनुरोध भेजा गया!*\n━━━━━━━━━━━━━━━━━━━━━━\n\nसुविधा       ${data.facilityName}\nफसल          ${data.commodityName} — ${data.estimatedWeightKg?.toLocaleString('en-IN')} Kg\nतारीख        ${data.preferredDateDisplay}\n\nस्थिति        🟡 *PENDING*\n\n⏳ आपका अनुरोध *${data.facilityName}* को भेज दिया गया है।\n\nमालिक की मंजूरी के बाद आपको बुकिंग नंबर और QR कोड WhatsApp पर भेजा जाएगा।\n\n━━━━━━━━━━━━━━━━━━━━━━\n_*menu* भेजें_`
+          : `*Booking Request Sent!*\n━━━━━━━━━━━━━━━━━━━━━━\n\nFacility      ${data.facilityName}\nCommodity   ${data.commodityName} — ${data.estimatedWeightKg?.toLocaleString('en-IN')} Kg\nDate          ${data.preferredDateDisplay}\n\nStatus       🟡 *PENDING*\n\n⏳ Your request has been sent to *${data.facilityName}*.\n\nYou'll receive your booking number and QR code on WhatsApp once the owner approves your booking.\n\n━━━━━━━━━━━━━━━━━━━━━━\n_Send *menu* for options_`;
 
         await whatsappService.sendText(phone, successMsg);
         await sessionManager.clearFlow(phone);

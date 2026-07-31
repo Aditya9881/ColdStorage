@@ -6,6 +6,10 @@
  *   DISPATCH_REQUESTED → DISPATCHING → DISPATCHED → COMPLETED
  *
  * Or: PENDING → CANCELLED / REJECTED at any point
+ *
+ * NOTE: QR code and booking confirmation details are only generated
+ * when the cold storage owner confirms the booking (PENDING → CONFIRMED).
+ * The farmer is notified via WhatsApp and push notification upon approval.
  */
 import { prisma } from '../../config/database';
 import { AppError } from '../../shared/middleware/error-handler';
@@ -19,6 +23,8 @@ import {
 import { BookingStatus, CommodityCategory } from '@prisma/client';
 import { UserRole } from '../../shared/types';
 import crypto from 'crypto';
+import { whatsappService } from '../whatsapp/whatsapp.service';
+import { pushNotificationService } from '../notifications/push.service';
 
 // ── Types ──
 interface CreateBookingInput {
@@ -97,7 +103,8 @@ export class BookingService {
     });
     const bookingNumber = generateBookingNumber(facilityCode, todayBookings + 1);
 
-    // Create booking
+    // Create booking — QR code is NOT generated here.
+    // QR + notification are deferred until the owner confirms the booking.
     const booking = await prisma.booking.create({
       data: {
         bookingNumber,
@@ -123,13 +130,6 @@ export class BookingService {
       },
     });
 
-    // Generate QR code data
-    const qrCodeData = generateQRPayload(booking.id, bookingNumber);
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { qrCodeData },
-    });
-
     // Audit log
     await createAuditLog({
       userId: input.farmerId,
@@ -140,7 +140,7 @@ export class BookingService {
       newValues: { bookingNumber, facilityId: input.facilityId, commodity: input.commodityName },
     });
 
-    return { ...booking, qrCodeData };
+    return booking;
   }
 
   /**
@@ -292,10 +292,14 @@ export class BookingService {
     const updateData: any = { status: input.status };
 
     switch (input.status) {
-      case 'CONFIRMED':
+      case 'CONFIRMED': {
         if (input.chamberId) updateData.chamberId = input.chamberId;
         if (input.ownerNote) updateData.ownerNote = input.ownerNote;
+        // Generate QR code on confirmation — this is when the farmer gets their scannable QR
+        const qrCodeData = generateQRPayload(booking.id, booking.bookingNumber);
+        updateData.qrCodeData = qrCodeData;
         break;
+      }
 
       case 'ARRIVED':
         updateData.arrivedAt = new Date();
@@ -363,6 +367,11 @@ export class BookingService {
       oldValues: { status: booking.status },
       newValues: { status: input.status },
     });
+
+    // When booking is confirmed by owner, notify the farmer via WhatsApp + Push
+    if (input.status === 'CONFIRMED') {
+      await this.notifyFarmerApproval(updated);
+    }
 
     return updated;
   }
@@ -498,6 +507,74 @@ export class BookingService {
     }
 
     throw new AppError(403, 'FORBIDDEN', 'You do not have access to this booking');
+  }
+
+  /**
+   * Notify the farmer when their booking is approved by the cold storage owner.
+   * Sends both a WhatsApp message and a push notification.
+   */
+  private async notifyFarmerApproval(booking: any) {
+    try {
+      const farmer = booking.farmer || await prisma.user.findUnique({
+        where: { id: booking.farmerId },
+        select: { id: true, fullName: true, phone: true },
+      });
+      const facility = booking.facility || await prisma.facility.findUnique({
+        where: { id: booking.facilityId },
+        select: { id: true, name: true, city: true },
+      });
+
+      if (!farmer) return;
+
+      const facilityName = facility?.name || 'Cold Storage';
+      const facilityCity = facility?.city || '';
+      const dateStr = booking.preferredDate
+        ? new Date(booking.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '';
+
+      // ── WhatsApp Notification ──
+      if (farmer.phone) {
+        // Normalize phone to WhatsApp format (country code + number, no +)
+        let waPhone = farmer.phone.replace(/[^\d]/g, '');
+        if (waPhone.length === 10) waPhone = `91${waPhone}`; // Indian number
+
+        const waMessage = [
+          `✅ *Booking Approved!*`,
+          `━━━━━━━━━━━━━━━━━━━━━━`,
+          ``,
+          `Your booking has been confirmed by *${facilityName}*!`,
+          ``,
+          `📋 Booking No.   *#${booking.bookingNumber}*`,
+          `🏭 Facility        ${facilityName}${facilityCity ? `, ${facilityCity}` : ''}`,
+          `📦 Commodity     ${booking.commodityName || ''}`,
+          `📅 Date             ${dateStr}`,
+          ``,
+          `✅ Status           *CONFIRMED*`,
+          ``,
+          `🔲 Your QR code is ready! Open the app to view your booking QR.`,
+          `Show it at the facility gate when you arrive.`,
+          ``,
+          `━━━━━━━━━━━━━━━━━━━━━━`,
+          `_Send *bookings* to view all bookings_`,
+          `_Send *menu* for main menu_`,
+        ].join('\n');
+
+        await whatsappService.sendText(waPhone, waMessage);
+        console.log(`[Booking] WhatsApp approval notification sent to ${waPhone}`);
+      }
+
+      // ── Push Notification ──
+      await pushNotificationService.sendToUser(farmer.id, {
+        title: '✅ Booking Approved!',
+        body: `Your booking #${booking.bookingNumber} at ${facilityName} has been confirmed. Open the app to view your QR code.`,
+        type: 'BOOKING_CONFIRMED',
+        data: { bookingId: booking.id, bookingNumber: booking.bookingNumber },
+      });
+      console.log(`[Booking] Push approval notification sent to farmer ${farmer.id}`);
+    } catch (err) {
+      // Notification failure should not break the booking confirmation
+      console.error('[Booking] Failed to send farmer approval notification:', err);
+    }
   }
 
   /**
