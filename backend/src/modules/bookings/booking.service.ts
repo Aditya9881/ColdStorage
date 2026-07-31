@@ -538,10 +538,16 @@ export class BookingService {
         let waPhone = farmer.phone.replace(/[^\d]/g, '');
         if (waPhone.length === 10) waPhone = `91${waPhone}`; // Indian number
 
+        // Send QR code as image first
+        const qrData = booking.qrCodeData || '';
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrData)}&margin=20&format=png`;
+        const qrCaption = `✅ *Booking Approved!*\n\n📋 Booking No: *#${booking.bookingNumber}*\n🏭 ${facilityName}${facilityCity ? `, ${facilityCity}` : ''}\n📦 ${booking.commodityName || ''}\n📅 ${dateStr}\n\n🔲 Show this QR code at the facility gate when you arrive.`;
+
+        await whatsappService.sendImage(waPhone, qrImageUrl, qrCaption);
+
+        // Send follow-up text with full details
         const waMessage = [
-          `✅ *Booking Approved!*`,
           `━━━━━━━━━━━━━━━━━━━━━━`,
-          ``,
           `Your booking has been confirmed by *${facilityName}*!`,
           ``,
           `📋 Booking No.   *#${booking.bookingNumber}*`,
@@ -551,8 +557,8 @@ export class BookingService {
           ``,
           `✅ Status           *CONFIRMED*`,
           ``,
-          `🔲 Your QR code is ready! Open the app to view your booking QR.`,
-          `Show it at the facility gate when you arrive.`,
+          `The QR code image above is your entry pass.`,
+          `Staff will scan it when you arrive at the facility.`,
           ``,
           `━━━━━━━━━━━━━━━━━━━━━━`,
           `_Send *bookings* to view all bookings_`,
@@ -560,7 +566,7 @@ export class BookingService {
         ].join('\n');
 
         await whatsappService.sendText(waPhone, waMessage);
-        console.log(`[Booking] WhatsApp approval notification sent to ${waPhone}`);
+        console.log(`[Booking] WhatsApp approval notification + QR image sent to ${waPhone}`);
       }
 
       // ── Push Notification ──
