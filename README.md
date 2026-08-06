@@ -12,7 +12,7 @@ A full-stack platform connecting **farmers**, **cold storage owners**, and **com
 │  (Admin/WMS) │    │ (Farmer/    │    │  PostgreSQL  │
 │              │    │  Buyer/Owner)│    │  Redis 7     │
 └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
-       │ cookies           │ bearer            │
+       │ cookies           │ bearer            │ 
        └───────────────────┴───────────────────┘
                      REST API /api/v1
 ```
