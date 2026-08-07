@@ -1,4 +1,4 @@
-# ColdStorage — AI-Driven Cold Storage Ecosystem
+# ColdStorage — AI-Driven Cold Storage Ecosystem 
  
 A full-stack platform connecting **farmers**, **cold storage owners**, and **commodity buyers** with real-time inventory management, booking, marketplace, and IoT monitoring.
 
