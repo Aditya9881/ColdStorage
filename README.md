@@ -2,7 +2,7 @@
  
 A full-stack platform connecting **farmers**, **cold storage owners**, and **commodity buyers** with real-time inventory management, booking, marketplace, and IoT monitoring.
 
-## Architecture
+## Architecture 
 
 ```
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
