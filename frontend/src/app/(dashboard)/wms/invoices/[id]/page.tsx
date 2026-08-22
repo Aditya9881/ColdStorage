@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CreditCard, FileDown, CheckCircle, AlertTriangle } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -11,6 +11,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { api, ApiError } from '@/lib/api-client';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { AuditTimeline } from '@/components/ui/AuditTimeline';
 import styles from './invoice-detail.module.css';
 
 export default function InvoiceDetailPage() {
@@ -48,8 +49,8 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  if (loading) return <><Header title="Invoice Details" /><main className={styles.content}><p>Loading...</p></main></>;
-  if (!invoice) return <><Header title="Invoice Details" /><main className={styles.content}><p>Invoice not found</p></main></>;
+  if (loading) return <PageLayout title="Invoice Details" breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Invoices', href: '/wms/invoices' }, { label: 'Details' }]}><p>Loading...</p></PageLayout>;
+  if (!invoice) return <PageLayout title="Invoice Details" breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Invoices', href: '/wms/invoices' }, { label: 'Details' }]}><p>Invoice not found</p></PageLayout>;
 
   const total = Number(invoice.totalAmount);
   const paid = Number(invoice.paidAmount);
@@ -59,13 +60,15 @@ export default function InvoiceDetailPage() {
   const statusVariant = invoice.status === 'PAID' ? 'accent' : invoice.status === 'PARTIALLY_PAID' ? 'warning' : invoice.status === 'OVERDUE' ? 'danger' : 'info';
 
   return (
-    <>
-      <Header title="Invoice Details" subtitle={invoice.invoiceNumber} />
-
-      <main className={styles.content}>
-        <span className={styles.backLink} onClick={() => router.push('/wms/invoices')}>
-          <ArrowLeft size={14} /> Back to Invoices
-        </span>
+    <PageLayout
+      title="Invoice Details"
+      subtitle={invoice.invoiceNumber}
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Invoices', href: '/wms/invoices' },
+        { label: invoice.invoiceNumber },
+      ]}
+    >
 
         {paySuccess && <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.1)', border: '1px solid var(--color-accent-500)', borderRadius: 'var(--radius-lg)', color: 'var(--color-accent-500)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={14} /> {paySuccess}</div>}
 
@@ -78,7 +81,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div className={styles.actions}>
               <Button variant="secondary" size="sm" icon={<FileDown size={14} />} onClick={() => {
-                api.downloadBlob(`/invoices/${id}/pdf`, `invoice-${invoice.invoiceNumber}.pdf`);
+                api.downloadBlob(`/reports/invoices/${id}/pdf`, `invoice-${invoice.invoiceNumber}.pdf`);
               }}>
                 Download PDF
               </Button>
@@ -181,7 +184,12 @@ export default function InvoiceDetailPage() {
             <div className={styles.emptyPayments}>No payments recorded yet</div>
           )}
         </Card>
-      </main>
-    </>
+
+        {/* Audit Activity */}
+        <Card padding="lg">
+          <CardHeader title="Audit Activity" subtitle="Changes and status updates" />
+          <AuditTimeline entityType="invoice" entityId={id as string} limit={10} />
+        </Card>
+    </PageLayout>
   );
 }

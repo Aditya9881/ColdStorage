@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -123,13 +123,15 @@ export default function CreateInvoicePage() {
   };
 
   return (
-    <>
-      <Header
-        title="Create Invoice"
-        subtitle="Generate a storage rent invoice for a depositor"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Create Invoice"
+      subtitle="Generate a storage rent invoice for a depositor"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Invoices', href: '/wms/invoices' },
+        { label: 'Create' },
+      ]}
+    >
         <Card padding="lg">
           <CardHeader title="Invoice Details" subtitle="Select a lot and billing period to generate an invoice" />
 
@@ -240,7 +242,6 @@ export default function CreateInvoicePage() {
             </div>
           </form>
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

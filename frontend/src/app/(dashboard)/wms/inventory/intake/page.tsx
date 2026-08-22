@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { api, ApiError } from '@/lib/api-client';
+import { intakeSchema, validateForm, ValidationErrors, getFieldError } from '@/lib/validation';
 import styles from './intake.module.css';
 
 export default function IntakePage() {
@@ -17,6 +18,7 @@ export default function IntakePage() {
   const [success, setSuccess] = useState('');
   const [chambers, setChambers] = useState<any[]>([]);
   const [depositors, setDepositors] = useState<any[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<ValidationErrors | null>(null);
 
   const [form, setForm] = useState({
     chamberId: '',
@@ -55,12 +57,30 @@ export default function IntakePage() {
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    // Clear field error on change
+    if (fieldErrors?.[field]) {
+      setFieldErrors((prev) => {
+        if (!prev) return null;
+        const next = { ...prev };
+        delete next[field];
+        return Object.keys(next).length ? next : null;
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    // Validate with Zod
+    const result = validateForm(intakeSchema, form);
+    if (!result.success) {
+      setFieldErrors(result.errors);
+      setError('Please fix the highlighted fields');
+      return;
+    }
+    setFieldErrors(null);
     setLoading(true);
 
     try {
@@ -105,13 +125,15 @@ export default function IntakePage() {
   };
 
   return (
-    <>
-      <Header
-        title="New Inventory Intake"
-        subtitle="Register incoming stock into the facility"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="New Inventory Intake"
+      subtitle="Register incoming stock into the facility"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Inventory', href: '/wms/inventory' },
+        { label: 'New Intake' },
+      ]}
+    >
         <Card padding="lg">
           <CardHeader title="Intake Details" subtitle="Fill in the details for the new inventory lot" />
 
@@ -250,7 +272,6 @@ export default function IntakePage() {
             </div>
           </form>
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

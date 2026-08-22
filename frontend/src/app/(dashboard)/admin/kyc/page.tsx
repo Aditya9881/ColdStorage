@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Clock, CheckCircle, XCircle, FileText, Phone, MapPin, Eye, Building2, Mail, CalendarDays, ExternalLink, Image as ImageIcon } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -143,11 +143,14 @@ export default function AdminKycPage() {
 
   return (
     <>
-      <Header
-        title="KYC Verification"
-        subtitle="Review and verify user identity documents"
-      />
-
+    <PageLayout
+      title="KYC Verification"
+      subtitle="Review and verify user identity documents"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'KYC' },
+      ]}
+    >
       <div className={styles.kycPage}>
         <div className={styles.statsRow}>
           <StatsCard title="Pending Review" value={total} icon={<Clock size={20} />} variant="warning" />
@@ -213,6 +216,7 @@ export default function AdminKycPage() {
           )}
         </Card>
       </div>
+    </PageLayout>
 
       {/* Review Modal */}
       <Modal

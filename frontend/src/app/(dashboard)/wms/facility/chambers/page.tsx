@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Boxes, CheckCircle, Package, BarChart, Wrench, Pencil, Plus, XCircle } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -119,10 +119,16 @@ export default function ChambersPage() {
 
   return (
     <>
-      <Header title="Chamber Management" subtitle="Configure and monitor storage chambers"
-        actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => { setForm(emptyChamberForm); setShowAddModal(true); }}>Add Chamber</Button>} />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Chamber Management"
+      subtitle="Configure and monitor storage chambers"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Facility', href: '/wms/facility' },
+        { label: 'Chambers' },
+      ]}
+      actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => { setForm(emptyChamberForm); setShowAddModal(true); }}>Add Chamber</Button>}
+    >
         <div className={`${styles.statsGrid} stagger-in`}>
           <StatsCard title="Total Chambers" value={chambers.length} icon={<Boxes size={18} />} variant="primary" />
           <StatsCard title="Operational" value={chambers.filter(c => c.status === 'OPERATIONAL').length} icon={<CheckCircle size={18} />} variant="accent" />
@@ -184,7 +190,7 @@ export default function ChambersPage() {
             </Card>
           )}
         </div>
-      </main>
+    </PageLayout>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Chamber" size="lg"
         footer={<><Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button><Button variant="primary" onClick={handleCreate} loading={submitting}>Create Chamber</Button></>}>

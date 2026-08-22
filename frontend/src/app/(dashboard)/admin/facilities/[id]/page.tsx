@@ -7,7 +7,7 @@ import {
   ArrowLeft, FileText, Calendar, Plus, ExternalLink, ClipboardCheck,
   Eye, Info, Phone, Mail, FileCheck, Layers
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -154,23 +154,23 @@ export default function FacilityDetailPage() {
 
   if (loading) {
     return (
-      <main className={styles.content}>
+      <PageLayout title="Facility Details" subtitle="Loading..." breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Facilities', href: '/admin/facilities' }, { label: 'Details' }]}>
         <div className="skeleton" style={{ height: '40px', width: '100px' }} />
         <div className="skeleton" style={{ height: '80px', width: '100%', borderRadius: 'var(--radius-lg)' }} />
         <div className={styles.statsRow}>
           {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: '100px', borderRadius: 'var(--radius-lg)' }} />)}
         </div>
-      </main>
+      </PageLayout>
     );
   }
 
   if (!facility) {
     return (
-      <main className={styles.content}>
+      <PageLayout title="Facility Details" subtitle="Not found" breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Facilities', href: '/admin/facilities' }, { label: 'Details' }]}>
         <Card padding="lg">
           <p style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>Facility not found</p>
         </Card>
-      </main>
+      </PageLayout>
     );
   }
 
@@ -302,13 +302,15 @@ export default function FacilityDetailPage() {
 
   return (
     <>
-      <main className={styles.content}>
-        {/* Back Button */}
-        <div>
-          <button className={styles.backBtn} onClick={() => router.push('/admin/facilities')}>
-            <ArrowLeft size={14} /> Back to Facilities
-          </button>
-        </div>
+    <PageLayout
+      title={facility.name}
+      subtitle={`${facility.city}, ${facility.state}`}
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Facilities', href: '/admin/facilities' },
+        { label: facility.name },
+      ]}
+    >
 
         {/* Detailed Page Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
@@ -496,7 +498,7 @@ export default function FacilityDetailPage() {
             <DataTable columns={staffColumns} data={staff} loading={loading} emptyMessage="No staff registered under this facility" />
           </Card>
         )}
-      </main>
+    </PageLayout>
 
       {/* Verify Facility Status Modal */}
       <Modal isOpen={showVerifyModal} onClose={() => setShowVerifyModal(false)} title="Update Facility Status" subtitle={facility.name} size="sm"

@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Package, Users, Coins, Clock, ClipboardList, TrendingUp, UserPlus, ShieldCheck } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -57,13 +57,10 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <>
-      <Header
-        title="Admin Dashboard"
-        subtitle="Platform-wide overview and management"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Admin Dashboard"
+      subtitle="Platform-wide overview and management"
+    >
         {/* KPI Stats Row */}
         <section className={`${styles.statsGrid} stagger-in`}>
           <StatsCard
@@ -225,7 +222,6 @@ export default function AdminDashboard() {
             onRowClick={(row) => router.push(`/admin/facilities/${row.id}`)}
           />
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

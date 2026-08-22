@@ -6,6 +6,8 @@ import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
 import { paramString } from '../../shared/utils/query-helpers';
 import { createAuditLog } from '../../shared/utils/audit';
+import { validate } from '../../shared/middleware/validate';
+import { escrowPaySchema, escrowReleaseSchema, escrowRefundSchema, escrowDisputeSchema } from '../../shared/schemas';
 
 const router = Router();
 router.use(authenticate);
@@ -101,7 +103,7 @@ router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 }));
 
 // ── POST /escrow/:orderId/pay — Buyer initiates payment (marks as HELD) ──
-router.post('/:orderId/pay', authorize(UserRole.BUYER, UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/:orderId/pay', authorize(UserRole.BUYER, UserRole.ADMIN, UserRole.SUPER_ADMIN), validate({ body: escrowPaySchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const orderId = paramString(req.params.orderId);
   const { pgReferenceId, pgProvider } = req.body;
 
@@ -162,7 +164,7 @@ router.post('/:orderId/pay', authorize(UserRole.BUYER, UserRole.ADMIN, UserRole.
 }));
 
 // ── POST /escrow/:id/release — Release funds to seller (after OTP approval + dispatch) ──
-router.post('/:id/release', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.STAFF), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/:id/release', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.STAFF), validate({ body: escrowReleaseSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const id = paramString(req.params.id);
   const { loanDeduction } = req.body;
 
@@ -232,7 +234,7 @@ router.post('/:id/release', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN, User
 }));
 
 // ── POST /escrow/:id/refund — Refund buyer (order cancelled/disputed) ──
-router.post('/:id/refund', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/:id/refund', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), validate({ body: escrowRefundSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const id = paramString(req.params.id);
   const { reason } = req.body;
 
@@ -262,11 +264,9 @@ router.post('/:id/refund', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), asyn
 }));
 
 // ── POST /escrow/:id/dispute — Flag escrow for dispute ──
-router.post('/:id/dispute', authorize(UserRole.BUYER, UserRole.FARMER), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/:id/dispute', authorize(UserRole.BUYER, UserRole.FARMER), validate({ body: escrowDisputeSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const id = paramString(req.params.id);
   const { reason } = req.body;
-
-  if (!reason) { errors.badRequest(res, 'Dispute reason is required'); return; }
 
   const escrow = await prisma.escrowTransaction.findUnique({
     where: { id },

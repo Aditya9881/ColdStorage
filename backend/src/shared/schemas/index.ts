@@ -352,3 +352,55 @@ export const updateBookingStatusSchema = z.object({
   dispatchWeightKg: z.number().positive().optional(),
   dispatchNote: z.string().max(500).optional(),
 });
+
+// ── IoT Device Schemas ──
+
+export const createIoTDeviceSchema = z.object({
+  facilityId: z.string().uuid('Invalid facility ID'),
+  chamberId: z.string().uuid('Invalid chamber ID').optional().nullable(),
+  deviceId: z.string().min(1, 'Device ID is required').max(100),
+  deviceType: z.string().min(1, 'Device type is required').max(50),
+  mqttTopic: z.string().max(255).optional().nullable(),
+  firmwareVersion: z.string().max(20).optional().nullable(),
+  description: z.string().max(1000).optional().nullable(),
+});
+
+export const updateIoTDeviceSchema = z.object({
+  chamberId: z.string().uuid().optional().nullable(),
+  mqttTopic: z.string().max(255).optional(),
+  firmwareVersion: z.string().max(20).optional().nullable(),
+  description: z.string().max(1000).optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+
+// ── Warehouse Receipt Schemas ──
+
+export const createWarehouseReceiptSchema = z.object({
+  lotId: z.string().uuid('Invalid lot ID'),
+  isNegotiable: z.boolean().optional().default(true),
+});
+
+export const pledgeReceiptSchema = z.object({
+  pledgedTo: z.string().min(1, 'Bank/NBFC name is required').max(255),
+  pledgeAmount: z.coerce.number().positive('Pledge amount must be positive'),
+});
+
+// ── Escrow Schemas ──
+
+export const escrowPaySchema = z.object({
+  pgReferenceId: z.string().max(100).optional().nullable(),
+  pgProvider: z.string().max(50).optional().nullable(),
+});
+
+export const escrowReleaseSchema = z.object({
+  loanDeduction: z.coerce.number().min(0).optional(),
+});
+
+export const escrowDisputeSchema = z.object({
+  reason: z.string().min(1, 'Dispute reason is required').max(1000),
+});
+
+export const escrowRefundSchema = z.object({
+  reason: z.string().max(1000).optional(),
+});
+

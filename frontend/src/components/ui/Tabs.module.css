@@ -1,0 +1,91 @@
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Underline variant ──────────────────── */
+.underline {
+  border-bottom: 1px solid var(--color-border-primary);
+  gap: 0;
+}
+
+.underline .tab {
+  padding: var(--space-2-5) var(--space-4);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+  background: none;
+}
+
+.underline .tab:hover {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-border-hover);
+  background: none;
+}
+
+.underline .tab.active {
+  color: var(--color-primary-400);
+  border-bottom-color: var(--color-primary-500);
+  background: none;
+}
+
+/* ── Pills variant ──────────────────────── */
+.pills .tab {
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+
+.pills .tab:hover {
+  background: var(--color-bg-secondary);
+}
+
+.pills .tab.active {
+  background: var(--color-primary-500);
+  color: white;
+}
+
+.pills .tab.active:hover {
+  background: var(--color-primary-600);
+}
+
+/* ── Shared tab styles ──────────────────── */
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-tertiary);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+}
+
+.tabIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.tabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-semibold);
+  border-radius: var(--radius-full);
+  background: var(--color-danger-500);
+  color: white;
+  line-height: 1;
+}

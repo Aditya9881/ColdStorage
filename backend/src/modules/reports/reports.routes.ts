@@ -2,7 +2,14 @@ import { Router } from 'express';
 import { prisma } from '../../config/database';
 import { authenticate, authorize } from '../auth/auth.middleware';
 import { asyncHandler } from '../../shared/middleware/error-handler';
+import { errors } from '../../shared/utils/api-response';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
+import { paramString } from '../../shared/utils/query-helpers';
+import {
+  generateReceiptPdf,
+  generateGatePassPdf,
+  generateInvoicePdf,
+} from '../../shared/utils/pdf-generator';
 
 const router = Router();
 
@@ -210,6 +217,166 @@ router.get('/transactions/csv', asyncHandler(async (req: AuthenticatedRequest, r
   const csv = toCSV(rows, columns);
   const date = new Date().toISOString().split('T')[0];
   sendCSV(res, `transactions-report-${date}.csv`, csv);
+}));
+
+// ────────────────────────────────────────────────
+// PDF REPORT ENDPOINTS
+// ────────────────────────────────────────────────
+
+/**
+ * GET /reports/lots/:id/receipt — Download intake receipt PDF
+ */
+router.get('/lots/:id/receipt', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const lot = await prisma.inventoryLot.findUnique({
+    where: { id: paramString(req.params.id) },
+    include: {
+      facility: true,
+      chamber: true,
+      depositor: { select: { fullName: true, phone: true } },
+    },
+  });
+  if (!lot) { errors.notFound(res, 'Lot not found'); return; }
+
+  const userId = req.user!.userId;
+  const role = req.user!.role;
+  if (role === UserRole.FARMER && lot.depositorId !== userId) {
+    errors.forbidden(res, 'You can only download receipts for your own lots'); return;
+  }
+  if (role === UserRole.OWNER && lot.facility.ownerId !== userId) {
+    errors.forbidden(res, 'Lot does not belong to your facility'); return;
+  }
+
+  const facilityAddress = [lot.facility.addressLine1, lot.facility.city, lot.facility.state, lot.facility.pincode].filter(Boolean).join(', ');
+
+  const pdfBuffer = await generateReceiptPdf({
+    lotNumber: lot.lotNumber,
+    receiptNumber: lot.receiptNumber,
+    facilityName: lot.facility.name,
+    facilityAddress,
+    chamberNumber: lot.chamber?.chamberNumber || '—',
+    chamberName: lot.chamber?.name || null,
+    depositorName: lot.depositor.fullName,
+    depositorPhone: lot.depositor.phone,
+    commodityCategory: lot.commodityCategory,
+    commodityName: lot.commodityName,
+    intakeWeightKg: Number(lot.intakeWeightKg),
+    bagCount: lot.bagCount,
+    qualityGrade: lot.qualityGrade,
+    moistureContent: lot.moistureContent ? Number(lot.moistureContent) : null,
+    intakeDate: lot.createdAt,
+    expectedRelease: lot.expectedRelease,
+    appliedRate: lot.appliedRate ? Number(lot.appliedRate) : null,
+    pricingModel: lot.pricingModel,
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="receipt-${lot.receiptNumber}.pdf"`);
+  res.send(pdfBuffer);
+}));
+
+/**
+ * GET /reports/lots/:id/gate-pass — Download gate pass PDF (latest release)
+ */
+router.get('/lots/:id/gate-pass', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const lot = await prisma.inventoryLot.findUnique({
+    where: { id: paramString(req.params.id) },
+    include: {
+      facility: true,
+      depositor: { select: { fullName: true, phone: true } },
+      transactions: {
+        where: { transactionType: { in: ['PARTIAL_RELEASE', 'FULL_RELEASE'] } },
+        orderBy: { performedAt: 'desc' },
+        take: 1,
+        include: { performer: { select: { fullName: true } } },
+      },
+    },
+  });
+  if (!lot) { errors.notFound(res, 'Lot not found'); return; }
+
+  const release = lot.transactions[0];
+  if (!release) { errors.badRequest(res, 'No release transaction found for this lot'); return; }
+
+  const userId = req.user!.userId;
+  const role = req.user!.role;
+  if (role === UserRole.FARMER && lot.depositorId !== userId) { errors.forbidden(res, 'Access denied'); return; }
+  if (role === UserRole.OWNER && lot.facility.ownerId !== userId) { errors.forbidden(res, 'Access denied'); return; }
+
+  const facilityAddress = [lot.facility.addressLine1, lot.facility.city, lot.facility.state, lot.facility.pincode].filter(Boolean).join(', ');
+
+  const pdfBuffer = await generateGatePassPdf({
+    gatePassNumber: release.gatePassNumber || `GP-${lot.lotNumber}`,
+    lotNumber: lot.lotNumber,
+    facilityName: lot.facility.name,
+    facilityAddress,
+    depositorName: lot.depositor.fullName,
+    depositorPhone: lot.depositor.phone,
+    commodityName: lot.commodityName,
+    releaseWeightKg: Number(release.weightKg),
+    bagCount: release.bagCount,
+    remainingWeightKg: Number(lot.currentWeightKg),
+    releaseType: release.transactionType,
+    releasedBy: release.performer?.fullName || 'System',
+    releaseDate: release.performedAt,
+    notes: release.notes,
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="gate-pass-${release.gatePassNumber || lot.lotNumber}.pdf"`);
+  res.send(pdfBuffer);
+}));
+
+/**
+ * GET /reports/invoices/:id/pdf — Download invoice PDF
+ */
+router.get('/invoices/:id/pdf', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: paramString(req.params.id) },
+    include: {
+      facility: true,
+      depositor: { select: { fullName: true, phone: true, addressLine1: true, city: true, state: true } },
+      lineItems: true,
+      lot: { select: { lotNumber: true, commodityName: true } },
+    },
+  });
+  if (!invoice) { errors.notFound(res, 'Invoice not found'); return; }
+
+  const userId = req.user!.userId;
+  const role = req.user!.role;
+  if (role === UserRole.FARMER && invoice.depositorId !== userId) { errors.forbidden(res, 'Access denied'); return; }
+  if (role === UserRole.OWNER && invoice.facility.ownerId !== userId) { errors.forbidden(res, 'Access denied'); return; }
+
+  const facilityAddress = [invoice.facility.addressLine1, invoice.facility.city, invoice.facility.state, invoice.facility.pincode].filter(Boolean).join(', ');
+  const depositorAddress = [invoice.depositor.addressLine1, invoice.depositor.city, invoice.depositor.state].filter(Boolean).join(', ') || null;
+
+  const pdfBuffer = await generateInvoicePdf({
+    invoiceNumber: invoice.invoiceNumber,
+    facilityName: invoice.facility.name,
+    facilityAddress,
+    depositorName: invoice.depositor.fullName,
+    depositorPhone: invoice.depositor.phone,
+    depositorAddress,
+    issueDate: invoice.issueDate,
+    dueDate: invoice.dueDate,
+    billingPeriodStart: invoice.billingPeriodStart,
+    billingPeriodEnd: invoice.billingPeriodEnd,
+    lineItems: invoice.lineItems.map((li) => ({
+      description: li.description,
+      quantity: Number(li.quantity),
+      unitPrice: Number(li.unitPrice),
+      totalPrice: Number(li.totalPrice),
+    })),
+    subtotal: Number(invoice.subtotal),
+    taxAmount: Number(invoice.taxAmount),
+    totalAmount: Number(invoice.totalAmount),
+    paidAmount: Number(invoice.paidAmount),
+    status: invoice.status,
+    lotNumber: invoice.lot?.lotNumber || null,
+    commodityName: invoice.lot?.commodityName || null,
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`);
+  res.send(pdfBuffer);
 }));
 
 export default router;

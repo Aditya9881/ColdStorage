@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sprout, CheckCircle, Search, UserPlus, Plus } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -147,12 +147,14 @@ export default function DepositorsPage() {
 
   return (
     <>
-      <Header
-        title="Depositors"
-        subtitle="Farmers and clients with stored inventory"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Depositors"
+      subtitle="Farmers and clients with stored inventory"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Depositors' },
+      ]}
+    >
         <div className={`${styles.statsRow} stagger-in`}>
           <StatsCard title="Total Depositors" value={depositors.length} icon={<Sprout size={20} />} variant="primary" />
           <StatsCard title="Active" value={depositors.filter(d => d.status === 'ACTIVE').length} icon={<CheckCircle size={20} />} variant="accent" />
@@ -178,7 +180,7 @@ export default function DepositorsPage() {
             onRowClick={(row) => router.push(`/wms/depositors/${row.id}`)}
           />
         </Card>
-      </main>
+    </PageLayout>
 
       {/* Add Farmer Modal */}
       <Modal

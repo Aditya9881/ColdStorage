@@ -202,7 +202,7 @@ model User {
   facility   Facility? @relation("FacilityStaff", fields: [facilityId], references: [id], onDelete: SetNull)
 
   // Profile
-  avatarUrl     String? @map("avatar_url") @db.VarChar(512)
+  avatarUrl     String? @map("avatar_url") @db.Text
   preferredLang String  @default("en") @map("preferred_lang") @db.VarChar(5)
   addressLine1  String? @map("address_line1") @db.VarChar(255)
   addressLine2  String? @map("address_line2") @db.VarChar(255)
@@ -342,6 +342,7 @@ model Booking {
   id            String        @id @default(uuid()) @db.Uuid
   bookingNumber String        @unique @map("booking_number") @db.VarChar(30)
   qrCodeData    String?       @map("qr_code_data") @db.Text      // QR payload (JSON or token)
+  qrTokenHash   String?       @map("qr_token_hash") @db.VarChar(64) // HMAC-SHA256 hash for QR verification
   status        BookingStatus @default(PENDING)
 
   // Who is booking

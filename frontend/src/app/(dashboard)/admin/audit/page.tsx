@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { FileText, Search } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Input';
@@ -68,13 +68,14 @@ export default function AuditPage() {
   };
 
   return (
-    <>
-      <Header
-        title="Audit Trail"
-        subtitle="Track all system actions and changes"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Audit Trail"
+      subtitle="Complete activity log of all platform actions"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Audit' },
+      ]}
+    >
         <Card padding="md">
           <CardHeader title="Activity Log" subtitle="All recorded actions across the platform" />
 
@@ -152,7 +153,6 @@ export default function AuditPage() {
             </div>
           )}
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

@@ -5,7 +5,7 @@ import {
   Thermometer, Droplets, AlertTriangle, CheckCircle,
   Activity, Clock, RefreshCw,
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LineChart } from '@/components/charts';
@@ -119,24 +119,25 @@ export default function MonitoringPage() {
   const noDataCount = data.filter((d) => d.currentTemperature === null).length;
 
   return (
-    <>
-      <Header
-        title="Temperature Monitoring"
-        subtitle="Real-time chamber environment tracking"
-        actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <span className={styles.refreshBadge}>
-              <span className={styles.refreshDot} />
-              Live · {formatRelativeTime(lastRefresh.toISOString())}
-            </span>
-            <Button variant="secondary" size="sm" icon={<RefreshCw size={14} />} onClick={refetch}>
-              Refresh
-            </Button>
-          </div>
-        }
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Temperature Monitoring"
+      subtitle="Real-time chamber environment tracking"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Monitoring' },
+      ]}
+      actions={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <span className={styles.refreshBadge}>
+            <span className={styles.refreshDot} />
+            Live · {formatRelativeTime(lastRefresh.toISOString())}
+          </span>
+          <Button variant="secondary" size="sm" icon={<RefreshCw size={14} />} onClick={refetch}>
+            Refresh
+          </Button>
+        </div>
+      }
+    >
         {/* Summary Bar */}
         <div className={styles.summaryBar}>
           <div className={styles.summaryItem}>
@@ -324,7 +325,6 @@ export default function MonitoringPage() {
             })}
           </div>
         )}
-      </main>
-    </>
+    </PageLayout>
   );
 }

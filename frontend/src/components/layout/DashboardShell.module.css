@@ -1,0 +1,24 @@
+/* ============================================
+   DashboardShell — Shared layout for all dashboards
+   Replaces duplicated dashboard.module.css + wms.module.css
+   ============================================ */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+}
+
+.mainArea {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--transition-base);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 1024px) {
+  .mainArea {
+    margin-left: 0;
+  }
+}

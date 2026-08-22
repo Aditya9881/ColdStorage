@@ -10,6 +10,8 @@ import { apiRateLimiter } from './shared/middleware/rate-limiter';
 import { errorHandler } from './shared/middleware/error-handler';
 import { enforceHttps } from './shared/middleware/enforce-https';
 import { sanitizeInput } from './shared/middleware/sanitize';
+import { csrfProtection } from './shared/middleware/csrf';
+import { sentryRequestHandler, sentryErrorHandler } from './config/sentry';
 
 // Module routes
 import authRoutes from './modules/auth/auth.routes';
@@ -80,14 +82,24 @@ if (env.CORS_ORIGIN) {
     });
 }
 
+// Vercel project domain — restrict preview/production deploys to your project only.
+// Set VERCEL_PROJECT_DOMAIN=your-project-name.vercel.app in production env.
+const vercelProjectDomain = process.env.VERCEL_PROJECT_DOMAIN || '';
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
     // Exact match against allowlist
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Allow all Vercel preview/production deployments
-    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    // Allow Vercel deployments for this specific project only
+    if (vercelProjectDomain && origin.endsWith('.vercel.app')) {
+      // Match: <project>.vercel.app or <branch>-<project>.vercel.app
+      const host = origin.replace(/^https?:\/\//, '');
+      if (host === vercelProjectDomain || host.endsWith(`-${vercelProjectDomain}`)) {
+        return callback(null, true);
+      }
+    }
     // In development, allow any origin for convenience
     if (!isProd) return callback(null, true);
     callback(new Error(`Origin ${origin} not allowed by CORS`));
@@ -106,6 +118,13 @@ app.use(compression());
 // ── Input Sanitization ────────────────────────────
 app.use(sanitizeInput);
 
+// ── CSRF Protection (production only) ─────────────
+// Cookie-based auth is vulnerable to CSRF. Require X-CSRF-Token header
+// for mutating requests that use cookie auth. Bearer token requests bypass.
+if (isProd) {
+  app.use(csrfProtection);
+}
+
 // ── Static file serving (uploaded documents) ──
 // KYC documents are now served through an authenticated route
 // at /api/v1/files/kyc/:filename (see file-download.routes.ts).
@@ -118,6 +137,9 @@ if (!isProd) {
     },
   }));
 }
+
+// ── Sentry Request Handler ───────────────────────
+app.use(sentryRequestHandler);
 
 // ── Logging & Rate Limiting ───────────────────────
 app.use(requestLogger);
@@ -197,7 +219,11 @@ app.use((_req, res) => {
   });
 });
 
-// ── Global Error Handler ──────────────────────────
+// ── Sentry Error Handler ──────────────────────
+// Captures unhandled errors for monitoring before the global error handler
+app.use(sentryErrorHandler);
+
+// ── Global Error Handler ──────────────────────
 app.use(errorHandler);
 
 export default app;

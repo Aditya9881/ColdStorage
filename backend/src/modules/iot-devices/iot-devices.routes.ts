@@ -6,18 +6,15 @@ import { asyncHandler } from '../../shared/middleware/error-handler';
 import { AuthenticatedRequest, UserRole } from '../../shared/types';
 import { paramString } from '../../shared/utils/query-helpers';
 import { createAuditLog } from '../../shared/utils/audit';
+import { validate } from '../../shared/middleware/validate';
+import { createIoTDeviceSchema, updateIoTDeviceSchema } from '../../shared/schemas';
 
 const router = Router();
 router.use(authenticate);
 
 // ── POST /iot-devices — Register a new IoT device ──
-router.post('/', authorize(UserRole.OWNER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/', authorize(UserRole.OWNER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN), validate({ body: createIoTDeviceSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { facilityId, chamberId, deviceId, deviceType, mqttTopic, firmwareVersion, description } = req.body;
-
-  if (!facilityId || !deviceId || !deviceType) {
-    errors.badRequest(res, 'facilityId, deviceId, and deviceType are required');
-    return;
-  }
 
   // Verify facility exists and user has access
   const facility = await prisma.facility.findUnique({ where: { id: facilityId } });
@@ -141,7 +138,7 @@ router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 }));
 
 // ── PATCH /iot-devices/:id — Update device config ──
-router.patch('/:id', authorize(UserRole.OWNER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.patch('/:id', authorize(UserRole.OWNER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN), validate({ body: updateIoTDeviceSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const id = paramString(req.params.id);
   const { chamberId, mqttTopic, firmwareVersion, description, isActive } = req.body;
 

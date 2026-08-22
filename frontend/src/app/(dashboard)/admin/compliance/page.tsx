@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Clock, AlertOctagon, ClipboardList, AlertTriangle, FileText, CheckCircle, PartyPopper, Factory } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Badge } from '@/components/ui/Badge';
@@ -42,13 +42,14 @@ export default function CompliancePage() {
   };
 
   return (
-    <>
-      <Header
-        title="Compliance & Documents"
-        subtitle="Monitor facility document status and regulatory compliance"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Compliance Monitor"
+      subtitle="Track document validity and facility compliance status"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Compliance' },
+      ]}
+    >
         {/* Compliance KPIs */}
         <div className={`${styles.statsGrid} stagger-in`}>
           <StatsCard
@@ -176,7 +177,6 @@ export default function CompliancePage() {
             </div>
           )}
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

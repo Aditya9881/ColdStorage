@@ -216,7 +216,7 @@ router.get('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
     select: {
       id: true, uniqueId: true, fullName: true, phone: true, email: true,
       role: true, status: true, addressLine1: true, city: true,
-      state: true, pincode: true, facilityId: true,
+      state: true, pincode: true, facilityId: true, avatarUrl: true,
       createdAt: true, updatedAt: true,
     },
   });
@@ -233,7 +233,7 @@ router.get('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
  * PATCH /users/me — Update own profile
  */
 router.patch('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
-  const { fullName, email, addressLine1, city, state, pincode } = req.body;
+  const { fullName, email, addressLine1, city, state, pincode, avatarUrl } = req.body;
 
   const updated = await prisma.user.update({
     where: { id: req.user!.userId },
@@ -244,10 +244,11 @@ router.patch('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
       ...(city !== undefined && { city: city || null }),
       ...(state !== undefined && { state: state || null }),
       ...(pincode !== undefined && { pincode: pincode || null }),
+      ...(avatarUrl !== undefined && { avatarUrl: avatarUrl || null }),
     },
     select: {
       id: true, fullName: true, phone: true, email: true,
-      role: true, status: true, uniqueId: true,
+      role: true, status: true, uniqueId: true, avatarUrl: true,
       addressLine1: true, city: true, state: true, pincode: true,
     },
   });

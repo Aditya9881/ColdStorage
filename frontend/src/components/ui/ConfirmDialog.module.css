@@ -1,0 +1,42 @@
+.content {
+  text-align: center;
+  padding: var(--space-2) 0 var(--space-1);
+}
+
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-4);
+}
+
+.icon-danger {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--color-danger-400);
+}
+
+.icon-primary {
+  background: rgba(26, 79, 138, 0.1);
+  color: var(--color-primary-400);
+}
+
+.icon-accent {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-accent-400);
+}
+
+.message {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}

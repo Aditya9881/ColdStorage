@@ -8,6 +8,7 @@ import {
   ClipboardCheck, Boxes, Package, PackagePlus,
   Receipt, FilePlus, Sprout, Building, Snowflake,
   PanelLeftClose, PanelLeftOpen, Settings, FileText, ShieldCheck, CalendarCheck,
+  Home, Search, Warehouse,
 } from 'lucide-react';
 import { useSidebar } from '@/hooks/useSidebar';
 import styles from './Sidebar.module.css';
@@ -77,6 +78,8 @@ const wmsNav: NavGroup[] = [
   },
 ];
 
+// Farmer nav removed — farmers are mobile-only users
+
 interface SidebarProps {
   role: 'admin' | 'wms';
 }
@@ -117,14 +120,14 @@ export function Sidebar({ role }: SidebarProps) {
           <div className={styles.logoText}>
             <span className={styles.logoTitle}>ColdStorage</span>
             <span className={styles.logoRole}>
-              {role === 'admin' ? 'Admin' : 'WMS'}
+              {role === 'admin' ? 'Admin' : role === 'farmer' ? 'Farmer' : 'WMS'}
             </span>
           </div>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className={styles.nav}>
+      <nav className={styles.nav} data-tour="sidebar-nav">
         {navGroups.map((group) => (
           <div key={group.title} className={styles.group}>
             {!collapsed && <div className={styles.groupTitle}>{group.title}</div>}

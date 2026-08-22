@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Factory, Package, Users, Coins, BarChart3, TrendingUp } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Badge } from '@/components/ui/Badge';
@@ -73,13 +73,14 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <>
-      <Header
-        title="Analytics"
-        subtitle="Platform-wide data insights and trends"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Analytics"
+      subtitle="Platform-wide data insights and trends"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Analytics' },
+      ]}
+    >
         {/* Top KPIs */}
         <div className={`${styles.statsGrid} stagger-in`}>
           <StatsCard title="Facilities" value={overview?.facilities.total ?? '—'} subtitle={`${overview?.facilities.active ?? 0} active`} icon={<Factory size={18} />} variant="primary" />
@@ -222,7 +223,6 @@ export default function AnalyticsPage() {
             formatTooltip={(v: number) => `${v.toLocaleString()} MT`}
           />
         )}
-      </main>
-    </>
+    </PageLayout>
   );
 }

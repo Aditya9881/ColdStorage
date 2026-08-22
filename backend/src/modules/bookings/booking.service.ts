@@ -26,6 +26,9 @@ import crypto from 'crypto';
 import { whatsappService } from '../whatsapp/whatsapp.service';
 import { pushNotificationService } from '../notifications/push.service';
 
+// HMAC secret for signing QR tokens — derived from JWT secret for convenience
+const QR_HMAC_SECRET = process.env.JWT_ACCESS_SECRET || 'coldstorage-qr-hmac-default-key';
+
 // ── Types ──
 interface CreateBookingInput {
   farmerId: string;
@@ -59,16 +62,25 @@ interface UpdateBookingStatusInput {
 }
 
 /**
- * Generate a QR code payload for a booking
+ * Generate a QR code payload for a booking with HMAC-signed token.
+ * Returns both the JSON payload (for the QR) and the token hash (stored in DB).
  */
-function generateQRPayload(bookingId: string, bookingNumber: string): string {
+function generateQRPayload(bookingId: string, bookingNumber: string): { payload: string; tokenHash: string } {
   const token = crypto.randomBytes(16).toString('hex');
-  return JSON.stringify({
+  // HMAC-sign the token so it can be verified on scan
+  const tokenHash = crypto
+    .createHmac('sha256', QR_HMAC_SECRET)
+    .update(token)
+    .digest('hex');
+
+  const payload = JSON.stringify({
     id: bookingId,
     bn: bookingNumber,
     tk: token,
     ts: Date.now(),
   });
+
+  return { payload, tokenHash };
 }
 
 export class BookingService {
@@ -295,9 +307,10 @@ export class BookingService {
       case 'CONFIRMED': {
         if (input.chamberId) updateData.chamberId = input.chamberId;
         if (input.ownerNote) updateData.ownerNote = input.ownerNote;
-        // Generate QR code on confirmation — this is when the farmer gets their scannable QR
-        const qrCodeData = generateQRPayload(booking.id, booking.bookingNumber);
+        // Generate HMAC-signed QR code on confirmation — farmer gets their scannable QR
+        const { payload: qrCodeData, tokenHash } = generateQRPayload(booking.id, booking.bookingNumber);
         updateData.qrCodeData = qrCodeData;
+        updateData.qrTokenHash = tokenHash;
         break;
       }
 
@@ -341,34 +354,43 @@ export class BookingService {
 
     let updated;
     if (input.status === 'STORED') {
+      // storeBooking already uses prisma.$transaction internally
       updated = await this.storeBooking(booking, input, updateData);
     } else {
-      updated = await prisma.booking.update({
-        where: { id: input.bookingId },
-        data: updateData,
-        include: {
-          facility: {
-            select: { id: true, name: true, city: true },
+      // Wrap booking update + audit log in a transaction for atomicity
+      updated = await prisma.$transaction(async (tx) => {
+        const result = await tx.booking.update({
+          where: { id: input.bookingId },
+          data: updateData,
+          include: {
+            facility: {
+              select: { id: true, name: true, city: true },
+            },
+            farmer: {
+              select: { id: true, fullName: true, phone: true },
+            },
           },
-          farmer: {
-            select: { id: true, fullName: true, phone: true },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: input.userId,
+            userRole: input.userRole as any,
+            action: `booking.${input.status.toLowerCase()}`,
+            entityType: 'booking',
+            entityId: input.bookingId,
+            oldValues: { status: booking.status },
+            newValues: { status: input.status },
           },
-        },
+        });
+
+        return result;
       });
     }
 
-    // Audit log
-    await createAuditLog({
-      userId: input.userId,
-      userRole: input.userRole as UserRole,
-      action: `booking.${input.status.toLowerCase()}`,
-      entityType: 'booking',
-      entityId: input.bookingId,
-      oldValues: { status: booking.status },
-      newValues: { status: input.status },
-    });
-
     // When booking is confirmed by owner, notify the farmer via WhatsApp + Push
+    // Notifications are intentionally outside the transaction — a notification
+    // failure should NOT roll back a successful booking confirmation.
     if (input.status === 'CONFIRMED') {
       await this.notifyFarmerApproval(updated);
     }
@@ -411,33 +433,51 @@ export class BookingService {
       throw new AppError(400, 'INVALID_STATUS', `Cannot scan booking with status: ${booking.status}`);
     }
 
+    // Verify the HMAC-signed QR token
+    if (parsed.tk) {
+      const expectedHash = crypto
+        .createHmac('sha256', QR_HMAC_SECRET)
+        .update(parsed.tk)
+        .digest('hex');
+      const storedHash = booking.qrTokenHash;
+      if (!storedHash || !crypto.timingSafeEqual(Buffer.from(expectedHash, 'hex'), Buffer.from(storedHash, 'hex'))) {
+        throw new AppError(400, 'INVALID_QR_TOKEN', 'QR code token verification failed — this code may be forged');
+      }
+    }
+
     await this.assertFacilityAccess(booking.facilityId, scannerId, scannerRole || UserRole.STAFF, assignedFacilityId);
 
-    // Transition to ARRIVED
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: 'ARRIVED',
-        arrivedAt: new Date(),
-        scannedById: scannerId,
-      },
-      include: {
-        farmer: {
-          select: { id: true, fullName: true, phone: true, uniqueId: true },
+    // Transition to ARRIVED — wrapped in transaction for atomicity
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: 'ARRIVED',
+          arrivedAt: new Date(),
+          scannedById: scannerId,
         },
-        facility: {
-          select: { id: true, name: true },
+        include: {
+          farmer: {
+            select: { id: true, fullName: true, phone: true, uniqueId: true },
+          },
+          facility: {
+            select: { id: true, name: true },
+          },
         },
-      },
-    });
+      });
 
-    await createAuditLog({
-      userId: scannerId,
-      userRole: UserRole.STAFF,
-      action: 'booking.qr_scan',
-      entityType: 'booking',
-      entityId: booking.id,
-      newValues: { status: 'ARRIVED', scannerId },
+      await tx.auditLog.create({
+        data: {
+          userId: scannerId,
+          userRole: 'STAFF',
+          action: 'booking.qr_scan',
+          entityType: 'booking',
+          entityId: booking.id,
+          newValues: { status: 'ARRIVED', scannerId },
+        },
+      });
+
+      return result;
     });
 
     return updated;

@@ -1,15 +1,47 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertTriangle, User, Lock } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { CheckCircle, AlertTriangle, User, Lock, Bell } from 'lucide-react';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { api, ApiError } from '@/lib/api-client';
 import styles from './settings.module.css';
 
-type Tab = 'profile' | 'security';
+type Tab = 'profile' | 'security' | 'notifications';
+
+interface NotificationPrefs {
+  bookingUpdates: boolean;
+  inventoryAlerts: boolean;
+  invoiceReminders: boolean;
+  temperatureAlerts: boolean;
+  systemAnnouncements: boolean;
+  channelWhatsApp: boolean;
+  channelSMS: boolean;
+  channelPush: boolean;
+  channelEmail: boolean;
+}
+
+const defaultPrefs: NotificationPrefs = {
+  bookingUpdates: true,
+  inventoryAlerts: true,
+  invoiceReminders: true,
+  temperatureAlerts: true,
+  systemAnnouncements: true,
+  channelWhatsApp: true,
+  channelSMS: false,
+  channelPush: true,
+  channelEmail: false,
+};
+
+function loadPrefs(): NotificationPrefs {
+  if (typeof window === 'undefined') return defaultPrefs;
+  try {
+    const saved = localStorage.getItem('notification_prefs');
+    return saved ? { ...defaultPrefs, ...JSON.parse(saved) } : defaultPrefs;
+  } catch { return defaultPrefs; }
+}
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('profile');
@@ -26,8 +58,12 @@ export default function SettingsPage() {
   // Password form
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
+  // Notification prefs
+  const [prefs, setPrefs] = useState<NotificationPrefs>(defaultPrefs);
+
   useEffect(() => {
     loadProfile();
+    setPrefs(loadPrefs());
   }, []);
 
   const loadProfile = async () => {
@@ -100,11 +136,32 @@ export default function SettingsPage() {
     }
   };
 
-  return (
-    <>
-      <Header title="Settings" subtitle="Manage your profile and security" />
+  const togglePref = (key: keyof NotificationPrefs) => {
+    setPrefs((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('notification_prefs', JSON.stringify(next));
+      return next;
+    });
+    setSuccess('Notification preferences saved');
+    setTimeout(() => setSuccess(''), 2000);
+  };
 
-      <main className={styles.content}>
+  const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
+    <label className={styles.toggle}>
+      <input type="checkbox" checked={checked} onChange={onChange} />
+      <span className={styles.toggleTrack} />
+    </label>
+  );
+
+  return (
+    <PageLayout
+      title="Settings"
+      subtitle="Manage your profile and security"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Settings' },
+      ]}
+    >
         {/* Tabs */}
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${tab === 'profile' ? styles.tabActive : ''}`} onClick={() => { setTab('profile'); setSuccess(''); setError(''); }}>
@@ -112,6 +169,9 @@ export default function SettingsPage() {
           </button>
           <button className={`${styles.tab} ${tab === 'security' ? styles.tabActive : ''}`} onClick={() => { setTab('security'); setSuccess(''); setError(''); }}>
             <Lock size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Security
+          </button>
+          <button className={`${styles.tab} ${tab === 'notifications' ? styles.tabActive : ''}`} onClick={() => { setTab('notifications'); setSuccess(''); setError(''); }}>
+            <Bell size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Notifications
           </button>
         </div>
 
@@ -166,7 +226,84 @@ export default function SettingsPage() {
             </form>
           </Card>
         )}
-      </main>
-    </>
+
+        {/* Notifications Tab */}
+        {tab === 'notifications' && (
+          <Card padding="lg">
+            <CardHeader title="Notification Preferences" subtitle="Choose what you want to be notified about" />
+
+            <div className={styles.prefGroup}>
+              <div className={styles.prefGroupTitle}>Events</div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>Booking Updates</div>
+                  <div className={styles.prefDesc}>New bookings, confirmations, and cancellations</div>
+                </div>
+                <Toggle checked={prefs.bookingUpdates} onChange={() => togglePref('bookingUpdates')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>Inventory Alerts</div>
+                  <div className={styles.prefDesc}>Intake confirmations, release requests, stock movements</div>
+                </div>
+                <Toggle checked={prefs.inventoryAlerts} onChange={() => togglePref('inventoryAlerts')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>Invoice Reminders</div>
+                  <div className={styles.prefDesc}>Payment reminders, overdue invoices, receipt confirmations</div>
+                </div>
+                <Toggle checked={prefs.invoiceReminders} onChange={() => togglePref('invoiceReminders')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>Temperature Alerts</div>
+                  <div className={styles.prefDesc}>Chamber temperature out of range warnings</div>
+                </div>
+                <Toggle checked={prefs.temperatureAlerts} onChange={() => togglePref('temperatureAlerts')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>System Announcements</div>
+                  <div className={styles.prefDesc}>Platform updates, maintenance notices</div>
+                </div>
+                <Toggle checked={prefs.systemAnnouncements} onChange={() => togglePref('systemAnnouncements')} />
+              </div>
+            </div>
+
+            <div className={styles.prefGroup}>
+              <div className={styles.prefGroupTitle}>Delivery Channels</div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>WhatsApp</div>
+                  <div className={styles.prefDesc}>Receive notifications via WhatsApp messages</div>
+                </div>
+                <Toggle checked={prefs.channelWhatsApp} onChange={() => togglePref('channelWhatsApp')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>SMS</div>
+                  <div className={styles.prefDesc}>Receive SMS notifications on your registered phone</div>
+                </div>
+                <Toggle checked={prefs.channelSMS} onChange={() => togglePref('channelSMS')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>Push Notifications</div>
+                  <div className={styles.prefDesc}>Browser and mobile push notifications</div>
+                </div>
+                <Toggle checked={prefs.channelPush} onChange={() => togglePref('channelPush')} />
+              </div>
+              <div className={styles.prefRow}>
+                <div>
+                  <div className={styles.prefLabel}>Email</div>
+                  <div className={styles.prefDesc}>Email notifications (requires email on profile)</div>
+                </div>
+                <Toggle checked={prefs.channelEmail} onChange={() => togglePref('channelEmail')} />
+              </div>
+            </div>
+          </Card>
+        )}
+    </PageLayout>
   );
 }

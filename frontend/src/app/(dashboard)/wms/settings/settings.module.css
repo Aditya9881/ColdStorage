@@ -120,3 +120,84 @@
   color: var(--color-text-muted);
   text-transform: capitalize;
 }
+
+.prefGroup {
+  margin-top: var(--space-4);
+}
+
+.prefGroupTitle {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+}
+
+.prefRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.prefRow:last-child {
+  border-bottom: none;
+}
+
+.prefLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+
+.prefDesc {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggleTrack {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.toggleTrack::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.toggle input:checked + .toggleTrack {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.toggle input:checked + .toggleTrack::after {
+  transform: translateX(18px);
+}

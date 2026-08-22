@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -107,18 +107,19 @@ export default function InventoryPage() {
   ];
 
   return (
-    <>
-      <Header
-        title="Inventory Management"
-        subtitle="Track and manage stored inventory lots"
-        actions={
-          <Button variant="accent" size="sm" icon={<Plus size={14} />} onClick={() => router.push('/wms/inventory/intake')}>
-            New Intake
-          </Button>
-        }
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Inventory Management"
+      subtitle="Track and manage stored inventory lots"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Inventory' },
+      ]}
+      actions={
+        <Button variant="accent" size="sm" icon={<Plus size={14} />} onClick={() => router.push('/wms/inventory/intake')}>
+          New Intake
+        </Button>
+      }
+    >
         <Card padding="none">
           <div className={styles.tableHeader}>
             <div className={styles.filters}>
@@ -155,7 +156,6 @@ export default function InventoryPage() {
             onRowClick={(row) => router.push(`/wms/inventory/${row.id}`)}
           />
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

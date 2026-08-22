@@ -5,8 +5,15 @@ import { authRateLimiter } from '../../shared/middleware/rate-limiter';
 import { validate } from '../../shared/middleware/validate';
 import { loginSchema, registerSchema, refreshTokenSchema, sendOtpSchema, verifyOtpSchema, resetPasswordSchema } from '../../shared/schemas';
 import { uploadOwnerRegistrationDocuments } from '../../shared/middleware/upload';
+import { generateCsrfToken } from '../../shared/middleware/csrf';
+import { sendSuccess } from '../../shared/utils/api-response';
 
 const router = Router();
+
+// ── CSRF Token ──
+router.get('/csrf-token', (_req, res) => {
+  sendSuccess(res, { csrfToken: generateCsrfToken() });
+});
 
 // ── OTP Routes (new) ──
 router.post('/send-otp', authRateLimiter, validate({ body: sendOtpSchema }), authController.sendOtp);

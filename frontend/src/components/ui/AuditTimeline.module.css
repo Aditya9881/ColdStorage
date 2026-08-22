@@ -1,0 +1,106 @@
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-2) 0;
+}
+
+.entry {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  position: relative;
+}
+
+.entry:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 32px;
+  bottom: -4px;
+  width: 1px;
+  background: var(--color-border-primary);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.dot.create { background: rgba(46, 204, 113, 0.15); color: var(--color-success-500); }
+.dot.update { background: rgba(52, 152, 219, 0.15); color: var(--color-accent); }
+.dot.delete { background: rgba(244, 62, 92, 0.15); color: var(--color-danger-500); }
+.dot.status { background: rgba(243, 156, 18, 0.15); color: var(--color-warning-500); }
+.dot.default { background: var(--color-bg-tertiary); color: var(--color-text-muted); }
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.action {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.actor {
+  font-weight: var(--font-semibold);
+  color: var(--color-accent);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.changes {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.changeRow {
+  display: flex;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.changeField {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  min-width: 80px;
+}
+
+.oldVal {
+  color: var(--color-danger-500);
+  text-decoration: line-through;
+}
+
+.newVal {
+  color: var(--color-success-500);
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.loadMore {
+  text-align: center;
+  padding: var(--space-3);
+}

@@ -95,6 +95,13 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
     }, 300);
   };
 
+  // Cleanup search timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
+
   const navigateSearch = (url: string) => {
     setSearchOpen(false); setSearchQuery(''); router.push(url);
   };
@@ -107,6 +114,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
 
   return (
     <>

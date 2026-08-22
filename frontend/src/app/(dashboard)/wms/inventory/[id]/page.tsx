@@ -6,7 +6,7 @@ import {
   ArrowLeft, Package, PackageOpen, Scale, ClipboardCheck,
   FileText, CheckCircle, AlertTriangle, Truck, Download, ArrowRightLeft,
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -19,6 +19,7 @@ import {
   getCommodityLabel, getStatusLabel, getStatusColor,
 } from '@/lib/formatters';
 import type { InventoryLot, InventoryTransaction } from '@/types/models';
+import { AuditTimeline } from '@/components/ui/AuditTimeline';
 import styles from './lot-detail.module.css';
 
 let API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
@@ -150,30 +151,24 @@ export default function LotDetailPage() {
   // ── Render ───────────────────────────────────
   if (loading) {
     return (
-      <>
-        <Header title="Lot Details" subtitle="Loading..." />
-        <main className={styles.content}>
-          <div className={styles.loadingState}>
-            <div className={styles.loadingSpinner} />
-            <p>Loading lot details...</p>
-          </div>
-        </main>
-      </>
+      <PageLayout title="Lot Details" subtitle="Loading..." breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Inventory', href: '/wms/inventory' }, { label: 'Details' }]}>
+        <div className={styles.loadingState}>
+          <div className={styles.loadingSpinner} />
+          <p>Loading lot details...</p>
+        </div>
+      </PageLayout>
     );
   }
 
   if (error || !lot) {
     return (
-      <>
-        <Header title="Lot Details" subtitle="Error" />
-        <main className={styles.content}>
-          <div className={styles.emptyState}>
-            <AlertTriangle size={40} />
-            <p>{error || 'Lot not found'}</p>
-            <Button variant="secondary" onClick={() => router.push('/wms/inventory')}>Back to Inventory</Button>
-          </div>
-        </main>
-      </>
+      <PageLayout title="Lot Details" subtitle="Error" breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Inventory', href: '/wms/inventory' }, { label: 'Details' }]}>
+        <div className={styles.emptyState}>
+          <AlertTriangle size={40} />
+          <p>{error || 'Lot not found'}</p>
+          <Button variant="secondary" onClick={() => router.push('/wms/inventory')}>Back to Inventory</Button>
+        </div>
+      </PageLayout>
     );
   }
 
@@ -181,16 +176,15 @@ export default function LotDetailPage() {
 
   return (
     <>
-      <Header
-        title="Lot Details"
-        subtitle={`${lot.lotNumber} — ${lot.commodityName}`}
-      />
-
-      <main className={styles.content}>
-        {/* Back Link */}
-        <button className={styles.backLink} onClick={() => router.push('/wms/inventory')}>
-          <ArrowLeft size={14} /> Back to Inventory
-        </button>
+    <PageLayout
+      title="Lot Details"
+      subtitle={`${lot.lotNumber} — ${lot.commodityName}`}
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Inventory', href: '/wms/inventory' },
+        { label: lot.lotNumber },
+      ]}
+    >
 
         <div className={styles.infoGrid}>
           {/* ── Left Column: Lot Details ─────────── */}
@@ -211,11 +205,23 @@ export default function LotDetailPage() {
                     size="sm"
                     icon={<Download size={14} />}
                     onClick={() => {
-                      api.downloadBlob(`/inventory/lots/${lot.id}/receipt`, `receipt-${lot.lotNumber}.pdf`);
+                      api.downloadBlob(`/reports/lots/${lot.id}/receipt`, `receipt-${lot.receiptNumber}.pdf`);
                     }}
                   >
                     Receipt
                   </Button>
+                  {(lot.status === 'PARTIALLY_RELEASED' || lot.status === 'RELEASED') && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<FileText size={14} />}
+                      onClick={() => {
+                        api.downloadBlob(`/reports/lots/${lot.id}/gate-pass`, `gate-pass-${lot.lotNumber}.pdf`);
+                      }}
+                    >
+                      Gate Pass
+                    </Button>
+                  )}
                   {canRelease && (
                     <Button variant="primary" size="sm" icon={<PackageOpen size={14} />} onClick={() => setShowRelease(true)}>
                       Release Stock
@@ -414,6 +420,12 @@ export default function LotDetailPage() {
                 </div>
               )}
             </Card>
+
+            {/* Audit Activity */}
+            <Card padding="lg">
+              <CardHeader title="Audit Activity" subtitle="Who did what and when" />
+              <AuditTimeline entityType="inventoryLot" entityId={lotId} limit={15} />
+            </Card>
           </div>
 
           {/* ── Right Column: Summary Sidebar ────── */}
@@ -500,7 +512,7 @@ export default function LotDetailPage() {
             </Card>
           </div>
         </div>
-      </main>
+    </PageLayout>
 
       {/* ── Release Modal ─────────────────────────── */}
       <Modal

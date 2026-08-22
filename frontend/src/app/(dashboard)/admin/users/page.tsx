@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Users, Sprout, Factory, CheckCircle, Pencil, Ban, UserPlus, Search, Building2, MapPin } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -171,8 +171,14 @@ export default function UsersPage() {
 
   return (
     <>
-      <Header title="User Management" subtitle="Manage platform users and roles" />
-      <main className={styles.content}>
+    <PageLayout
+      title="User Management"
+      subtitle="Manage platform users and roles"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Users' },
+      ]}
+    >
         {/* KPI Row */}
         <div className={`${styles.statsRow} stagger-in`}>
           <StatsCard title="Total Users" value={users.length} icon={<Users size={18} />} variant="primary" />
@@ -299,7 +305,7 @@ export default function UsersPage() {
             <DataTable columns={columns} data={adminsList} loading={loading} emptyMessage="No administrators registered" />
           </Card>
         )}
-      </main>
+    </PageLayout>
 
       {/* Add User Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New User" size="md"

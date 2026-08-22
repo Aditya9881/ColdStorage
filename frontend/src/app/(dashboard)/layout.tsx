@@ -3,6 +3,8 @@
 import React, { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { PageLoading } from '@/components/ui/PageLoading';
 import { useAuthStore } from '@/stores/auth-store';
 import styles from './dashboard.module.css';
 
@@ -48,23 +50,29 @@ export default function DashboardLayout({
       router.replace('/');
       return;
     }
-  }, [loading, isAuthenticated, user, isAdminRoute, router]);
+  }, [loading, isAuthenticated, user, isAdminRoute, pathname, router]);
 
-  // Show nothing while checking auth
+  // Show loading skeleton while checking auth
   if (loading || !isAuthenticated || !user) {
-    return null;
+    return (
+      <div className={styles.dashboardLayout}>
+        <div className={styles.mainArea}>
+          <PageLoading />
+        </div>
+      </div>
+    );
   }
 
   if (isWmsRoute) {
     // WMS layout handles its own sidebar
-    return <>{children}</>;
+    return <ErrorBoundary>{children}</ErrorBoundary>;
   }
 
   return (
     <div className={styles.dashboardLayout}>
       <Sidebar role="admin" />
       <div className={styles.mainArea}>
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </div>
     </div>
   );

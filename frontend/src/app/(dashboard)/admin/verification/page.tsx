@@ -6,7 +6,7 @@ import {
   Building2, Mail, CalendarDays, ExternalLink, Image as ImageIcon,
   AlertOctagon, AlertTriangle, ClipboardList, Factory, ShieldCheck,
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -184,12 +184,14 @@ export default function VerificationPage() {
 
   return (
     <>
-      <Header
-        title="Verification"
-        subtitle="KYC reviews and document compliance in one place"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Verification"
+      subtitle="KYC reviews and document compliance in one place"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Verification' },
+      ]}
+    >
         {/* Tab Switcher */}
         <div className={styles.tabBar}>
           <button
@@ -379,7 +381,7 @@ export default function VerificationPage() {
             </Card>
           </>
         )}
-      </main>
+    </PageLayout>
 
       {/* ── KYC Review Modal ── */}
       <Modal

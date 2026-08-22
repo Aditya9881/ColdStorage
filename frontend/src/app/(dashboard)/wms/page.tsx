@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -14,6 +14,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { api, ApiError } from '@/lib/api-client';
 import { formatWeight, formatCurrency, formatDate, formatPercent, getCommodityLabel } from '@/lib/formatters';
 import type { InventoryLot, Chamber } from '@/types/models';
+import { OnboardingTour, WMS_TOUR_STEPS } from '@/components/ui/OnboardingTour';
 import styles from './wms-dashboard.module.css';
 
 interface Booking {
@@ -115,27 +116,24 @@ export default function WMSDashboard() {
   ];
 
   return (
-    <>
-      <Header
-        title="WMS Dashboard"
-        subtitle="Warehouse Management System — Facility Operations"
-        actions={
-          <div className={styles.headerActions}>
-            <Button variant="secondary" size="sm" icon={<FileDown size={14} />} onClick={() => {
-              api.downloadBlob('/reports/inventory/csv', `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`);
-            }}>
-              Export
-            </Button>
-            <Button variant="accent" size="sm" icon={<Plus size={14} />} onClick={() => router.push('/wms/inventory/intake')}>
-              New Intake
-            </Button>
-          </div>
-        }
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="WMS Dashboard"
+      subtitle="Warehouse Management System — Facility Operations"
+      actions={
+        <div className={styles.headerActions}>
+          <Button variant="secondary" size="sm" icon={<FileDown size={14} />} onClick={() => {
+            api.downloadBlob('/reports/inventory/csv', `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`);
+          }}>
+            Export
+          </Button>
+          <Button variant="accent" size="sm" icon={<Plus size={14} />} onClick={() => router.push('/wms/inventory/intake')}>
+            New Intake
+          </Button>
+        </div>
+      }
+    >
         {/* KPI Row */}
-        <div className={`${styles.statsGrid} stagger-in`}>
+        <div className={`${styles.statsGrid} stagger-in`} data-tour="dashboard-stats">
           <StatsCard title="Pending Bookings" value={pendingBookings.length} subtitle="Awaiting confirmation" icon={<CalendarCheck size={20} />} variant={pendingBookings.length > 0 ? 'warning' : 'accent'} />
           <StatsCard title="Chambers" value={chamberList.length} subtitle={`${chamberList.filter(c => c.status === 'OPERATIONAL').length} operational`} icon={<Snowflake size={20} />} variant="primary" />
           <StatsCard title="Utilization" value={formatPercent(utilization)} subtitle={`${totalOccupied} / ${totalCapacity} MT`} icon={<BarChart3 size={20} />} variant={utilization > 80 ? 'danger' : 'accent'} />
@@ -145,6 +143,7 @@ export default function WMSDashboard() {
         {/* ─── Pending Bookings ─── */}
         {pendingBookings.length > 0 && (
           <Card padding="md">
+            <div data-tour="pending-bookings">
             <CardHeader
               title="Pending Bookings"
               subtitle="Farmer booking requests awaiting your confirmation"
@@ -341,7 +340,14 @@ export default function WMSDashboard() {
             onRowClick={(row) => router.push(`/wms/inventory/${row.id}`)}
           />
         </Card>
-      </main>
-    </>
+
+      {/* Onboarding Tour */}
+      <OnboardingTour
+        tourId="wms-dashboard"
+        steps={WMS_TOUR_STEPS}
+        welcomeTitle="Welcome to your Cold Storage WMS!"
+        welcomeDescription="Let's take a quick 30-second tour to help you manage your facility, track inventory, and serve your farmers better."
+      />
+    </PageLayout>
   );
 }

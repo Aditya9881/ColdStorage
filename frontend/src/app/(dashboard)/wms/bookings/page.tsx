@@ -6,7 +6,7 @@ import {
   CalendarCheck, Clock, CheckCircle, XCircle, User, Package,
   Phone, MapPin, Filter, Search, QrCode, Eye,
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -74,16 +74,22 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
-  const queryParams = statusFilter ? `?status=${statusFilter}` : '';
-  const { data, loading, refetch } = useApiQuery<{ bookings: Booking[]; total: number }>(
-    `/bookings/facility/mine${queryParams}`
+  const queryParams: Record<string, string> = { page: String(page), limit: String(limit) };
+  if (statusFilter) queryParams.status = statusFilter;
+
+  const { data, loading, refetch } = useApiQuery<{ bookings: Booking[]; total: number; pages?: number }>(
+    '/bookings/facility/mine',
+    { params: queryParams }
   );
 
   const bookings = data?.bookings || [];
   const total = data?.total || 0;
+  const totalPages = data?.pages || Math.ceil(total / limit);
 
-  // Client-side search filter
+  // Client-side search filter (on current page)
   const filtered = searchQuery
     ? bookings.filter(
         (b) =>
@@ -93,6 +99,9 @@ export default function BookingsPage() {
           b.commodityName.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : bookings;
+
+  // Reset to page 1 on filter change
+  const handleFilterChange = (val: string) => { setStatusFilter(val); setPage(1); };
 
   const handleAction = async (bookingId: string, status: 'CONFIRMED' | 'REJECTED' | 'ARRIVED' | 'CANCELLED') => {
     setActionLoading(bookingId);
@@ -203,30 +212,32 @@ export default function BookingsPage() {
 
   return (
     <>
-      <Header
-        title="Bookings"
-        subtitle="Manage farmer booking requests for your facility"
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Bookings"
+      subtitle="Manage farmer booking requests for your facility"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Bookings' },
+      ]}
+    >
         {/* Quick Stats */}
         <div className={styles.quickStats}>
-          <div className={`${styles.quickStat} ${styles.statPending}`} onClick={() => setStatusFilter('PENDING')}>
+          <div className={`${styles.quickStat} ${styles.statPending}`} onClick={() => handleFilterChange('PENDING')}>
             <Clock size={18} />
             <span className={styles.quickStatValue}>{pendingCount}</span>
             <span className={styles.quickStatLabel}>Pending</span>
           </div>
-          <div className={`${styles.quickStat} ${styles.statConfirmed}`} onClick={() => setStatusFilter('CONFIRMED')}>
+          <div className={`${styles.quickStat} ${styles.statConfirmed}`} onClick={() => handleFilterChange('CONFIRMED')}>
             <CheckCircle size={18} />
             <span className={styles.quickStatValue}>{confirmedCount}</span>
             <span className={styles.quickStatLabel}>Confirmed</span>
           </div>
-          <div className={`${styles.quickStat} ${styles.statArrived}`} onClick={() => setStatusFilter('ARRIVED')}>
+          <div className={`${styles.quickStat} ${styles.statArrived}`} onClick={() => handleFilterChange('ARRIVED')}>
             <MapPin size={18} />
             <span className={styles.quickStatValue}>{arrivedCount}</span>
             <span className={styles.quickStatLabel}>Arrived</span>
           </div>
-          <div className={`${styles.quickStat} ${styles.statTotal}`} onClick={() => setStatusFilter('')}>
+          <div className={`${styles.quickStat} ${styles.statTotal}`} onClick={() => handleFilterChange('')}>
             <CalendarCheck size={18} />
             <span className={styles.quickStatValue}>{total}</span>
             <span className={styles.quickStatLabel}>Total</span>
@@ -248,7 +259,7 @@ export default function BookingsPage() {
           <select
             className={styles.statusSelect}
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleFilterChange(e.target.value)}
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -264,9 +275,17 @@ export default function BookingsPage() {
             loading={loading}
             emptyMessage="No bookings found"
             onRowClick={(row) => setSelectedBooking(row)}
+            pagination={{
+              page,
+              limit,
+              total,
+              totalPages,
+              onPageChange: setPage,
+              onLimitChange: (newLimit) => { setLimit(newLimit); setPage(1); },
+            }}
           />
         </Card>
-      </main>
+    </PageLayout>
 
       {/* ── Booking Detail Modal ── */}
       <Modal

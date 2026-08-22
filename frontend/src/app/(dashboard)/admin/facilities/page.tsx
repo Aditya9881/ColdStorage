@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, CheckCircle, Clock, Package, Pencil, Search, Plus, ShieldCheck } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -189,8 +189,14 @@ export default function FacilitiesPage() {
 
   return (
     <>
-      <Header title="Facilities Management" subtitle="Manage cold storage facilities across the network" />
-      <main className={styles.content}>
+    <PageLayout
+      title="Facilities Management"
+      subtitle="Manage cold storage facilities across the network"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Facilities' },
+      ]}
+    >
         <div className={`${styles.statsRow} stagger-in`}>
           <StatsCard title="Total Facilities" value={facilities.length} icon={<Factory size={18} />} variant="primary" />
           <StatsCard title="Active" value={activeFacilities} icon={<CheckCircle size={18} />} variant="accent" />
@@ -214,7 +220,7 @@ export default function FacilitiesPage() {
           </div>
           <DataTable columns={columns} data={facilities} loading={loading} emptyMessage="No facilities found" onRowClick={(row) => router.push(`/admin/facilities/${row.id}`)} />
         </Card>
-      </main>
+    </PageLayout>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Facility" subtitle="Register a new cold storage facility" size="lg"
         footer={<><Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button><Button variant="primary" onClick={handleCreate} loading={submitting}>Create Facility</Button></>}>

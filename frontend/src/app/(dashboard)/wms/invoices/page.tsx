@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Receipt, CheckCircle, Clock, AlertTriangle, Coins, X, FilePlus } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -26,12 +26,24 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
-  const filterParams: Record<string, string> = {};
+  const filterParams: Record<string, string> = {
+    page: String(page),
+    limit: String(limit),
+  };
   if (statusFilter) filterParams.status = statusFilter;
 
-  const { data: invoiceData, loading, refetch } = useApiQuery<Invoice[]>('/invoices', { params: filterParams });
-  const invoices = invoiceData || [];
+  const { data: response, loading, refetch } = useApiQuery<{ invoices?: Invoice[]; data?: Invoice[]; total?: number; pagination?: { total: number; totalPages: number } }>('/invoices', { params: filterParams });
+  
+  // Support both flat array and paginated response formats
+  const invoices: Invoice[] = (response as any)?.invoices || (response as any)?.data || (Array.isArray(response) ? response : []);
+  const total = (response as any)?.pagination?.total || (response as any)?.total || invoices.length;
+  const totalPages = (response as any)?.pagination?.totalPages || Math.ceil(total / limit);
+
+  // Reset to page 1 when filter changes
+  const handleFilterChange = (val: string) => { setStatusFilter(val); setPage(1); };
 
   const openPay = (inv: Invoice) => {
     setSelectedInvoice(inv);
@@ -82,10 +94,15 @@ export default function InvoicesPage() {
 
   return (
     <>
-      <Header title="Invoices" subtitle="Manage billing and payments"
-        actions={<Button variant="primary" size="sm" icon={<FilePlus size={14} />} onClick={() => router.push('/wms/invoices/create')}>Create Invoice</Button>} />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Invoices"
+      subtitle="Manage billing and payments"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Invoices' },
+      ]}
+      actions={<Button variant="primary" size="sm" icon={<FilePlus size={14} />} onClick={() => router.push('/wms/invoices/create')}>Create Invoice</Button>}
+    >
         <div className={`${styles.statsRow} stagger-in`}>
           <StatsCard title="Total Billed" value={formatCurrency(totalRevenue)} icon={<Coins size={18} />} variant="primary" />
           <StatsCard title="Collected" value={formatCurrency(totalPaid)} icon={<CheckCircle size={18} />} variant="accent" />
@@ -96,18 +113,32 @@ export default function InvoicesPage() {
         <Card padding="none">
           <div className={styles.tableHeader}>
             <div className={styles.filters}>
-              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} options={[
+              <Select value={statusFilter} onChange={(e) => handleFilterChange(e.target.value)} options={[
                 { value: '', label: 'All Statuses' }, { value: 'DRAFT', label: 'Draft' },
                 { value: 'ISSUED', label: 'Issued' }, { value: 'PAID', label: 'Paid' },
                 { value: 'PARTIALLY_PAID', label: 'Partially Paid' },
                 { value: 'OVERDUE', label: 'Overdue' }, { value: 'CANCELLED', label: 'Cancelled' },
               ]} />
             </div>
-            <Badge variant="muted">{invoices.length} invoices</Badge>
+            <Badge variant="muted">{total} invoices</Badge>
           </div>
-          <DataTable columns={columns} data={invoices} loading={loading} emptyMessage="No invoices yet — create your first invoice" onRowClick={(row) => router.push(`/wms/invoices/${row.id}`)} />
+          <DataTable
+            columns={columns}
+            data={invoices}
+            loading={loading}
+            emptyMessage="No invoices yet — create your first invoice"
+            onRowClick={(row) => router.push(`/wms/invoices/${row.id}`)}
+            pagination={{
+              page,
+              limit,
+              total,
+              totalPages,
+              onPageChange: setPage,
+              onLimitChange: (newLimit) => { setLimit(newLimit); setPage(1); },
+            }}
+          />
         </Card>
-      </main>
+    </PageLayout>
 
       <Modal isOpen={showPayModal} onClose={() => setShowPayModal(false)} title="Record Payment" subtitle={selectedInvoice?.invoiceNumber} size="sm"
         footer={<><Button variant="secondary" onClick={() => setShowPayModal(false)}>Cancel</Button><Button variant="accent" onClick={handlePayment} loading={submitting}>Record Payment</Button></>}>

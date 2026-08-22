@@ -3,7 +3,7 @@
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Package, Receipt, Phone, Mail, MapPin, Calendar } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -24,8 +24,8 @@ export default function DepositorDetailPage() {
   const lots = (allLots || []).filter((l: any) => l.depositorId === id);
   const invoices = (allInvoices || []).filter((i: any) => i.depositorId === id);
 
-  if (loading) return <><Header title="Depositor Details" /><main style={{ padding: 'var(--space-6)' }}><p>Loading...</p></main></>;
-  if (!depositor) return <><Header title="Depositor Details" /><main style={{ padding: 'var(--space-6)' }}><p>Depositor not found</p></main></>;
+  if (loading) return <PageLayout title="Depositor Details" breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Depositors', href: '/wms/depositors' }, { label: 'Details' }]}><p>Loading...</p></PageLayout>;
+  if (!depositor) return <PageLayout title="Depositor Details" breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Depositors', href: '/wms/depositors' }, { label: 'Details' }]}><p>Depositor not found</p></PageLayout>;
 
   const activeLots = lots.filter(l => l.status === 'STORED' || l.status === 'PARTIALLY_RELEASED');
   const totalStored = activeLots.reduce((s, l) => s + Number(l.currentWeightKg || 0), 0);
@@ -49,13 +49,15 @@ export default function DepositorDetailPage() {
   ];
 
   return (
-    <>
-      <Header title="Depositor Details" subtitle={depositor.fullName} />
-
-      <main style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: 'var(--content-max-width)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', cursor: 'pointer' }} onClick={() => router.push('/wms/depositors')}>
-          <ArrowLeft size={14} /> Back to Depositors
-        </span>
+    <PageLayout
+      title="Depositor Details"
+      subtitle={depositor.fullName}
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Depositors', href: '/wms/depositors' },
+        { label: depositor.fullName },
+      ]}
+    >
 
         {/* Profile Card */}
         <Card padding="lg">
@@ -103,7 +105,6 @@ export default function DepositorDetailPage() {
           </div>
           <DataTable columns={invColumns} data={invoices} loading={loading} emptyMessage="No invoices for this depositor" onRowClick={(r) => router.push(`/wms/invoices/${r.id}`)} />
         </Card>
-      </main>
-    </>
+    </PageLayout>
   );
 }

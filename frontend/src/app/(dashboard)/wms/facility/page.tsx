@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Factory, Snowflake, Package, LayoutGrid, CheckCircle, Clock } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Badge } from '@/components/ui/Badge';
@@ -35,33 +35,27 @@ export default function FacilityPage() {
 
   if (loading) {
     return (
-      <>
-        <Header title="Facility Overview" subtitle="Loading..." />
-        <main className={styles.content}>
-          <div className={styles.loadingGrid}>
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="skeleton" style={{ height: 100, borderRadius: 'var(--radius-lg)' }} />
-            ))}
-          </div>
-        </main>
-      </>
+      <PageLayout title="Facility Overview" subtitle="Loading..." breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Facility' }]}>
+        <div className={styles.loadingGrid}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="skeleton" style={{ height: 100, borderRadius: 'var(--radius-lg)' }} />
+          ))}
+        </div>
+      </PageLayout>
     );
   }
 
   if (!facility) {
     return (
-      <>
-        <Header title="Facility Overview" subtitle="No facility assigned" />
-        <main className={styles.content}>
-          <Card padding="lg">
-            <div className={styles.emptyState}>
-              <Factory size={48} style={{ color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }} />
-              <h3>No Facility Found</h3>
-              <p>You don&apos;t have a facility assigned to your account yet. Contact the platform administrator.</p>
-            </div>
-          </Card>
-        </main>
-      </>
+      <PageLayout title="Facility Overview" subtitle="No facility assigned" breadcrumbs={[{ label: 'WMS', href: '/wms' }, { label: 'Facility' }]}>
+        <Card padding="lg">
+          <div className={styles.emptyState}>
+            <Factory size={48} style={{ color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }} />
+            <h3>No Facility Found</h3>
+            <p>You don&apos;t have a facility assigned to your account yet. Contact the platform administrator.</p>
+          </div>
+        </Card>
+      </PageLayout>
     );
   }
 
@@ -69,13 +63,14 @@ export default function FacilityPage() {
   const chamberCount = facility._count?.chambers ?? facility.chambers?.length ?? 0;
 
   return (
-    <>
-      <Header
-        title={facility.name}
-        subtitle={`${facility.city}, ${facility.state} — ${facility.registrationNumber || 'Unregistered'}`}
-      />
-
-      <main className={styles.content}>
+    <PageLayout
+      title={facility.name}
+      subtitle={`${facility.city}, ${facility.state} — ${facility.registrationNumber || 'Unregistered'}`}
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Facility' },
+      ]}
+    >
         {/* Facility Stats */}
         <div className={`${styles.statsGrid} stagger-in`}>
           <StatsCard title="Storage Type" value={facility.storageType || '—'} icon={<Snowflake size={20} />} variant="primary" />
@@ -175,7 +170,6 @@ export default function FacilityPage() {
             </div>
           </Card>
         </div>
-      </main>
-    </>
+    </PageLayout>
   );
 }

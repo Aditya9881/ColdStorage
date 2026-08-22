@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ClipboardList, CheckCircle, Package, Building2, MapPin } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -64,12 +64,14 @@ export default function AdminPricingPage() {
   }, [rules]);
 
   return (
-    <>
-      <Header
-        title="Pricing Management"
-        subtitle="Review and manage storage rates across all facilities"
-      />
-      <main className={styles.content}>
+    <PageLayout
+      title="Pricing Oversight"
+      subtitle="Monitor and manage storage rates across facilities"
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Pricing' },
+      ]}
+    >
         <div className={`${styles.statsRow} stagger-in`}>
           <StatsCard title="Total Rules" value={rules.length} icon={<ClipboardList size={18} />} variant="primary" />
           <StatsCard title="Active" value={activeRules} icon={<CheckCircle size={18} />} variant="accent" />
@@ -139,7 +141,6 @@ export default function AdminPricingPage() {
             ))}
           </div>
         )}
-      </main>
-    </>
+    </PageLayout>
   );
 }

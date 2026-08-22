@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ClipboardList, CheckCircle, Package, Plus, Pencil } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { Card } from '@/components/ui/Card';
 import { DataTable, Column, renderStatus } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
@@ -122,10 +122,15 @@ export default function WmsPricingPage() {
 
   return (
     <>
-      <Header title="Pricing Configuration" subtitle="Manage storage rates for your facility"
-        actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => { setForm(emptyPricingForm); setShowAddModal(true); }}>Add Rate</Button>} />
-
-      <main className={styles.content}>
+    <PageLayout
+      title="Pricing Configuration"
+      subtitle="Manage storage rates for your facility"
+      breadcrumbs={[
+        { label: 'WMS', href: '/wms' },
+        { label: 'Pricing' },
+      ]}
+      actions={<Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => { setForm(emptyPricingForm); setShowAddModal(true); }}>Add Rate</Button>}
+    >
         <div className={`${styles.statsRow} stagger-in`}>
           <StatsCard title="Total Rules" value={rules.length} icon={<ClipboardList size={18} />} variant="primary" />
           <StatsCard title="Active" value={rules.filter(r => r.status === 'ACTIVE').length} icon={<CheckCircle size={18} />} variant="accent" />
@@ -141,7 +146,7 @@ export default function WmsPricingPage() {
           </div>
           <DataTable columns={columns} data={rules} loading={loading} emptyMessage="No pricing rules configured" />
         </Card>
-      </main>
+    </PageLayout>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Pricing Rule" size="lg"
         footer={<><Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button><Button variant="primary" onClick={handleCreate} loading={submitting}>Create Rule</Button></>}>

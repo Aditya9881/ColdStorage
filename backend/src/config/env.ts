@@ -69,7 +69,7 @@ export const env: EnvConfig = {
   RATE_LIMIT_WINDOW_MS: getEnvVarAsNumber('RATE_LIMIT_WINDOW_MS', 900000),
   RATE_LIMIT_MAX_REQUESTS: getEnvVarAsNumber('RATE_LIMIT_MAX_REQUESTS', 100),
 
-  CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001,https://coldstorage-api.onrender.com,https://coldstorage-4lql.onrender.com'),
+  CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001'),
 
   LOG_LEVEL: getEnvVar('LOG_LEVEL', 'debug'),
 };

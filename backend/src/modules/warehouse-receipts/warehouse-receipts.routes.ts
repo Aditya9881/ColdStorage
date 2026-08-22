@@ -7,15 +7,15 @@ import { AuthenticatedRequest, UserRole } from '../../shared/types';
 import { paramString } from '../../shared/utils/query-helpers';
 import { createAuditLog } from '../../shared/utils/audit';
 import { generateReceiptNumber } from '../../shared/utils/id-generator';
+import { validate } from '../../shared/middleware/validate';
+import { createWarehouseReceiptSchema, pledgeReceiptSchema } from '../../shared/schemas';
 
 const router = Router();
 router.use(authenticate);
 
 // ── POST /warehouse-receipts — Generate eNWR for a lot ──
-router.post('/', authorize(UserRole.OWNER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.post('/', authorize(UserRole.OWNER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN), validate({ body: createWarehouseReceiptSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const { lotId, isNegotiable } = req.body;
-
-  if (!lotId) { errors.badRequest(res, 'lotId is required'); return; }
 
   // Verify lot exists and is stored
   const lot = await prisma.inventoryLot.findUnique({
@@ -169,14 +169,9 @@ router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 }));
 
 // ── PATCH /warehouse-receipts/:id/pledge — Pledge receipt to a bank/NBFC ──
-router.patch('/:id/pledge', authorize(UserRole.FARMER, UserRole.ADMIN, UserRole.SUPER_ADMIN), asyncHandler(async (req: AuthenticatedRequest, res) => {
+router.patch('/:id/pledge', authorize(UserRole.FARMER, UserRole.ADMIN, UserRole.SUPER_ADMIN), validate({ body: pledgeReceiptSchema }), asyncHandler(async (req: AuthenticatedRequest, res) => {
   const id = paramString(req.params.id);
   const { pledgedTo, pledgeAmount } = req.body;
-
-  if (!pledgedTo || !pledgeAmount) {
-    errors.badRequest(res, 'pledgedTo (bank name) and pledgeAmount are required');
-    return;
-  }
 
   const receipt = await prisma.warehouseReceipt.findUnique({
     where: { id },
